@@ -77,11 +77,7 @@ import {
   Car,
   Bus,
   Train,
-  Bike,
-  Battery,
-  BatteryLow,
-  BatteryMedium,
-  BatteryFull
+  Bike
 } from 'lucide-react';
 import { 
   format, 
@@ -1252,13 +1248,10 @@ export default function App() {
   const [isInsightModalOpen, setIsInsightModalOpen] = useState(false);
   
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
-  const [insightTimeRange, setInsightTimeRange] = useState<TimeRange | 'Monthly' | 'Yearly' | 'Custom'>('Daily');
+  const [insightTimeRange, setInsightTimeRange] = useState<TimeRange | 'Monthly' | 'Yearly'>('Daily');
   const [aiInsight, setAiInsight] = useState<string>("");
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
-  const [customDateRange, setCustomDateRange] = useState<{start: Date | null, end: Date | null}>({start: null, end: null});
-  const [isDateRangePickerOpen, setIsDateRangePickerOpen] = useState(false);
-
+  
   const [taskImpact, setTaskImpact] = useState(5);
   
   // Custom Time Picker State for Form
@@ -1351,15 +1344,6 @@ export default function App() {
     } else if (insightTimeRange === 'Yearly') {
       filteredTasks = tasks.filter(t => isSameYear(parseDateKey(t.date), currentDate));
       filteredLogs = logs.filter(l => isSameYear(parseDateKey(l.date), currentDate));
-    } else if (insightTimeRange === 'Custom' && customDateRange.start && customDateRange.end) {
-      filteredTasks = tasks.filter(t => {
-        const d = parseDateKey(t.date);
-        return d >= customDateRange.start! && d <= customDateRange.end!;
-      });
-      filteredLogs = logs.filter(l => {
-        const d = parseDateKey(l.date);
-        return d >= customDateRange.start! && d <= customDateRange.end!;
-      });
     }
 
     // Calculate Stats
@@ -1429,9 +1413,9 @@ export default function App() {
          };
       });
 
-    // Energy Level (formerly Mood)
+    // Mood
     const totalScore = filteredLogs.reduce((acc, l) => acc + l.score, 0);
-    const energyLevel = filteredLogs.length > 0 ? (totalScore / filteredLogs.length).toFixed(1) : '-';
+    const avgMood = filteredLogs.length > 0 ? (totalScore / filteredLogs.length).toFixed(1) : '-';
 
     return {
       total,
@@ -1441,9 +1425,9 @@ export default function App() {
       deepWorkHours: (deepWorkMinutes / 60).toFixed(1),
       barData,
       topActivities,
-      energyLevel
+      avgMood
     };
-  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate, customDateRange]);
+  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate]);
 
   const handleSaveTask = (formData: any) => {
     const newTask = { ...formData, id: formData.id || crypto.randomUUID(), date: formattedDate, completed: formData.completed || false };
@@ -1612,40 +1596,14 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto relative no-scrollbar bg-zinc-50/30 dark:bg-zinc-950/30 min-h-0">
           <div className="relative w-full" style={{ height: `${TIMELINE_HEIGHT + 100}px` }}>
-            {Array.from({ length: TIME_END_HOUR - TIME_START_HOUR }).map((_, i) => {
-              const hourTime = format(new Date().setHours((TIME_START_HOUR + i) % 24, 0, 0, 0), 'HH:00');
-              const hasTasksInHour = todaysTasks.some(task => {
-                const taskStartHour = parseInt(task.startTime.split(':')[0]);
-                const taskEndHour = parseInt(task.endTime.split(':')[0]);
-                const currentHour = (TIME_START_HOUR + i) % 24;
-                return taskStartHour <= currentHour && currentHour < taskEndHour;
-              });
-
-              return (
-                <div key={i} className="absolute w-full border-b border-zinc-100 dark:border-zinc-800 flex items-start group" style={{ top: i * PIXELS_PER_HOUR, height: PIXELS_PER_HOUR }}>
-                  <span className={`text-sm font-bold text-zinc-400 dark:text-zinc-600 w-16 pl-4 pt-1 select-none group-hover:${themeStyles.text} transition-colors`}>
-                    {hourTime}
-                  </span>
-                  <div className="absolute top-1/2 left-16 right-0 border-t border-zinc-50 dark:border-zinc-800/50 border-dashed w-full h-px" />
-                  {!hasTasksInHour && (
-                    <button
-                      onClick={() => {
-                        setFormStartTime(hourTime);
-                        setFormEndTime(format(new Date().setHours((TIME_START_HOUR + i + 1) % 24, 0, 0, 0), 'HH:00'));
-                        setEditingTask(undefined);
-                        setIsTaskModalOpen(true);
-                      }}
-                      className="absolute left-16 right-4 top-0 bottom-0 opacity-0 group-hover:opacity-100 transition-all hover:border-2 hover:border-dashed hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 rounded-lg flex items-center justify-center"
-                    >
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700">
-                        <Plus size={14} className={themeStyles.text} />
-                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">Add Task</span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {Array.from({ length: TIME_END_HOUR - TIME_START_HOUR }).map((_, i) => (
+              <div key={i} className="absolute w-full border-b border-zinc-100 dark:border-zinc-800 flex items-start group" style={{ top: i * PIXELS_PER_HOUR, height: PIXELS_PER_HOUR }}>
+                <span className={`text-xs font-bold text-zinc-400 dark:text-zinc-600 w-16 pl-4 pt-1 select-none group-hover:${themeStyles.text} transition-colors`}>
+                  {format(new Date().setHours((TIME_START_HOUR + i) % 24, 0, 0, 0), 'HH:00')}
+                </span>
+                <div className="absolute top-1/2 left-16 right-0 border-t border-zinc-50 dark:border-zinc-800/50 border-dashed w-full h-px" />
+              </div>
+            ))}
             {isSameDay(currentDate, new Date()) && (
                <div className="absolute w-full border-t-2 border-red-500 z-30 flex items-center pointer-events-none" style={{ top: getPosition(format(new Date(), 'HH:mm')) }}>
                  <div className="w-16 bg-red-500 text-white text-[10px] px-1 rounded-r font-bold -mt-3.5 ml-0 flex justify-end">{format(new Date(), 'HH:mm')}</div>
@@ -1663,7 +1621,7 @@ export default function App() {
               const isShort = height <= 60; // 1 hour is 54px
 
               return (
-                <div key={task.id} className={`absolute ${widthClass} rounded-lg ${catConfig.isFocus ? 'border-l-4' : 'border-l-[3px]'} p-2 flex flex-col justify-center transition-all cursor-pointer group shadow-sm hover:shadow-2xl hover:z-50 hover:h-auto hover:min-h-fit ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : catConfig.isFocus ? 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent ring-2 ring-offset-1' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} style={{ top: `${top}px`, height: `${height}px`, minHeight: `${height}px`, borderLeftColor: task.completed ? undefined : catConfig.color, ringColor: task.completed ? undefined : catConfig.isFocus ? catConfig.color : undefined }} onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}>
+                <div key={task.id} className={`absolute ${widthClass} rounded-lg border-l-[3px] p-2 flex flex-col justify-center transition-all cursor-pointer group shadow-sm hover:shadow-2xl hover:z-50 hover:h-auto hover:min-h-fit ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} style={{ top: `${top}px`, height: `${height}px`, minHeight: `${height}px`, borderLeftColor: task.completed ? undefined : catConfig.color }} onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}>
                   <div className="flex items-start gap-3 overflow-hidden h-full p-1">
                     <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                        <div className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-colors ${task.completed ? 'bg-zinc-400 border-zinc-400' : `bg-white border-zinc-300 ${themeStyles.hoverBorder}`}`} onClick={() => setTasks(ts => ts.map(t => t.id === task.id ? {...t, completed: !t.completed} : t))}>{task.completed && <Check size={10} className="text-white" />}</div>
@@ -1714,17 +1672,12 @@ export default function App() {
                <p className="text-zinc-500 text-sm font-medium mt-0.5">Ready to conquer the day?</p>
             </div>
             <div className="flex gap-3 relative items-center">
-               {/* Insight Time Range Filter */}
+               {/* Insight Time Range Filter moved here */}
                <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl flex text-xs font-bold mr-2">
-                  {(['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'] as const).map(range => (
+                  {(['Daily', 'Weekly', 'Monthly', 'Yearly'] as const).map(range => (
                     <button
                       key={range}
-                      onClick={() => {
-                        if (range === 'Custom') {
-                          setIsDateRangePickerOpen(true);
-                        }
-                        setInsightTimeRange(range);
-                      }}
+                      onClick={() => setInsightTimeRange(range)}
                       className={`px-3 py-1.5 rounded-lg transition-all ${insightTimeRange === range ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                     >
                       {range}
@@ -1732,17 +1685,13 @@ export default function App() {
                   ))}
                </div>
 
-               {/* Focus Mode Toggle */}
-               <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                 <Zap size={16} className={focusMode ? themeStyles.text : 'text-zinc-400'} />
-                 <span className="text-sm font-bold dark:text-zinc-200">Focus Mode</span>
-                 <button
-                   onClick={() => setFocusMode(!focusMode)}
-                   className={`relative w-11 h-6 rounded-full transition-colors ${focusMode ? themeStyles.bg : 'bg-zinc-300 dark:bg-zinc-700'}`}
-                 >
-                   <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${focusMode ? 'transform translate-x-5' : ''}`} />
-                 </button>
-               </div>
+               <button 
+                 onClick={() => setIsInsightModalOpen(true)}
+                 className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm group`}
+               >
+                  <Sparkles size={16} className={`${themeStyles.text} group-hover:animate-pulse`} />
+                  <span className="dark:text-zinc-200">AI Coach</span>
+               </button>
                
                <button 
                  onClick={() => setIsCatManagerOpen(true)}
@@ -1780,9 +1729,9 @@ export default function App() {
 
          {/* Dashboard Content - Fit to Screen Flex Layout */}
          <div className="flex-1 flex flex-col px-6 pb-6 gap-4 overflow-hidden">
-
+             
                {/* Stats Row - Filter removed from here */}
-               <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0 transition-opacity duration-300 ${focusMode ? 'opacity-30' : 'opacity-100'}`}>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
                          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Deep Focus</p>
@@ -1818,14 +1767,14 @@ export default function App() {
 
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
-                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Energy Level</p>
-                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-amber-500 transition-colors"><Battery size={18} /></div>
+                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Avg Mood</p>
+                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-amber-500 transition-colors"><Smile size={18} /></div>
                      </div>
                      <h3 className="text-4xl font-bold dark:text-white flex items-center gap-2 tracking-tight">
-                        {analytics.energyLevel}
-                        {analytics.energyLevel !== '-' && (
-                          <span className={`text-2xl ${Number(analytics.energyLevel) >= 4 ? 'text-emerald-500' : Number(analytics.energyLevel) >= 2 ? 'text-amber-500' : 'text-amber-600'}`}>
-                             {Number(analytics.energyLevel) >= 4 ? <BatteryFull size={24}/> : Number(analytics.energyLevel) >= 3 ? <BatteryMedium size={24}/> : <BatteryLow size={24}/>}
+                        {analytics.avgMood} 
+                        {analytics.avgMood !== '-' && (
+                          <span className={`text-2xl ${Number(analytics.avgMood) >= 4 ? 'text-emerald-500' : Number(analytics.avgMood) >= 3 ? 'text-amber-500' : 'text-red-500'}`}>
+                             {Number(analytics.avgMood) >= 4 ? <Smile size={24}/> : Number(analytics.avgMood) >= 3 ? <Meh size={24}/> : <Frown size={24}/>}
                           </span>
                         )}
                      </h3>
@@ -1835,106 +1784,152 @@ export default function App() {
                   </div>
                </div>
 
-               {/* Activity Analytics - Merged Chart and List */}
-               <div className={`shrink-0 h-[32%] min-h-[200px] transition-opacity duration-300 ${focusMode ? 'opacity-30' : 'opacity-100'}`}>
-                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-full flex flex-col">
-                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><BarChart3 size={20} className="text-zinc-400"/> Activity Analytics</h3>
-                     <div className="flex-1 w-full min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                         {/* Stacked Bar Chart */}
-                         <div className="lg:col-span-2 min-h-0">
-                            <ResponsiveContainer width="100%" height="100%">
-                               <BarChart data={analytics.barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={32}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#27272a' : '#f4f4f5'} />
-                                  <XAxis
-                                     dataKey="name"
-                                     axisLine={false}
-                                     tickLine={false}
-                                     tick={<CustomXAxisTick categories={categories} />}
-                                     interval={0}
-                                     height={40}
-                                  />
-                                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 10}} />
-                                  <Tooltip content={<CustomTooltip />} cursor={{fill: theme==='dark'?'#27272a':'#f4f4f5', opacity: 0.4}} />
-                                  <Bar dataKey="completed" stackId="a" radius={[0, 0, 4, 4]}>
-                                     {analytics.barData.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                     ))}
-                                  </Bar>
-                                  <Bar dataKey="pending" stackId="a" radius={[4, 4, 0, 0]}>
-                                     {analytics.barData.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} opacity={0.3} />
-                                     ))}
-                                  </Bar>
-                               </BarChart>
-                            </ResponsiveContainer>
-                         </div>
-
-                         {/* Top Activities - Compact List */}
-                         <div className="flex flex-col gap-2 overflow-hidden">
-                            {analytics.topActivities.length > 0 ? (
-                               analytics.topActivities.map((activity: any, i: number) => (
-                                  <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50">
-                                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
-                                        {getCategoryIcon(activity.icon, 14)}
-                                     </div>
-                                     <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-xs dark:text-zinc-200 truncate leading-none">{activity.name}</p>
-                                        <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1 rounded-full overflow-hidden mt-1">
-                                           <div className="h-full rounded-full" style={{width: `${Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100)}%`, background: activity.color}}></div>
-                                        </div>
-                                     </div>
-                                     <span className="font-bold text-xs dark:text-white shrink-0">{activity.hours}h</span>
-                                  </div>
-                               ))
-                            ) : (
-                               <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-xs">
-                                  <Activity size={24} className="mb-2 opacity-20" />
-                                  No activity data
-                               </div>
-                            )}
-                         </div>
+               {/* Charts Area - Fixed proportion to allow fit-to-screen */}
+               <div className="shrink-0 h-[32%] min-h-[200px] grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Main Bar Chart */}
+                  <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-full flex flex-col">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><BarChart3 size={20} className="text-zinc-400"/> Activity Distribution</h3>
+                     <div className="flex-1 w-full min-h-0">
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analytics.barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={32}>
+                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#27272a' : '#f4f4f5'} />
+                               <XAxis 
+                                  dataKey="name" 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={<CustomXAxisTick categories={categories} />}
+                                  interval={0}
+                                  height={40}
+                               />
+                               <YAxis axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 10}} />
+                               <Tooltip content={<CustomTooltip />} cursor={{fill: theme==='dark'?'#27272a':'#f4f4f5', opacity: 0.4}} />
+                               <Bar dataKey="completed" stackId="a" radius={[0, 0, 4, 4]}>
+                                  {analytics.barData.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                               </Bar>
+                               <Bar dataKey="pending" stackId="a" radius={[4, 4, 0, 0]}>
+                                  {analytics.barData.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={entry.color} opacity={0.3} />
+                                  ))}
+                               </Bar>
+                            </BarChart>
+                         </ResponsiveContainer>
                      </div>
+                  </div>
+
+                  {/* Top Activities List - Optimized to not scroll */}
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col h-full overflow-hidden">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><TrendingUp size={20} className="text-zinc-400"/> Top Activities</h3>
+                     
+                     {analytics.topActivities.length > 0 ? (
+                        <div className="flex-1 flex flex-col justify-between overflow-hidden min-h-0">
+                           {analytics.topActivities.map((activity: any, i: number) => (
+                              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50 h-[30%]">
+                                 <div className="font-bold text-lg text-zinc-300 w-5 text-center shrink-0">{i + 1}</div>
+                                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
+                                    {getCategoryIcon(activity.icon, 18)}
+                                 </div>
+                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                    <p className="font-bold text-sm dark:text-zinc-200 truncate leading-none mb-1.5">{activity.name}</p>
+                                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                                       <div className="h-full rounded-full" style={{width: `${Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100)}%`, background: activity.color}}></div>
+                                    </div>
+                                 </div>
+                                 <div className="text-right shrink-0 flex flex-col justify-center">
+                                    <span className="font-bold text-sm dark:text-white block leading-none">{activity.hours}</span>
+                                    <span className="text-[10px] text-zinc-500 block mt-0.5">hrs</span>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm">
+                           <Activity size={32} className="mb-2 opacity-20" />
+                           No activity data yet
+                        </div>
+                     )}
                   </div>
                </div>
 
-               {/* Consistency Heatmap - Redesigned Week View */}
-               <div className={`bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden p-5 transition-opacity duration-300 ${focusMode ? 'opacity-30' : 'opacity-100'}`}>
-                  <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4"><CalendarIcon size={20} className="text-zinc-400"/> Consistency Heatmap</h3>
-                  <div className="grid grid-cols-7 gap-2 flex-1">
+               {/* Week at a Glance - Redesigned & Flex Fill */}
+               <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <div className="px-5 pt-5 pb-3 shrink-0">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><CalendarIcon size={20} className="text-zinc-400"/> Week at a Glance</h3>
+                  </div>
+                  <div className="grid grid-cols-7 h-full divide-x divide-zinc-100 dark:divide-zinc-800 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                      {daysInWeek.map((day, i) => {
                         const dayStr = format(day, 'yyyy-MM-dd');
-                        const dayTasks = tasks.filter(t => t.date === dayStr);
+                        const dayTasks = tasks.filter(t => t.date === dayStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                        const dayLog = logs.find(l => l.date === dayStr);
                         const isToday = isSameDay(day, new Date());
                         const isSelected = isSameDay(day, currentDate);
-
+                        
                         const total = dayTasks.length;
                         const completed = dayTasks.filter(t => t.completed).length;
                         const completion = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-                        const getHeatmapColor = (percentage: number) => {
-                          if (percentage === 0) return 'bg-zinc-100 dark:bg-zinc-800';
-                          if (percentage < 25) return 'bg-emerald-200 dark:bg-emerald-900/40';
-                          if (percentage < 50) return 'bg-emerald-300 dark:bg-emerald-800/50';
-                          if (percentage < 75) return 'bg-emerald-400 dark:bg-emerald-700/60';
-                          return 'bg-emerald-500 dark:bg-emerald-600/70';
-                        };
-
+                        
+                        // Calculate Deep Work for the day
+                        let deepWorkMins = 0;
+                        dayTasks.forEach(t => {
+                           const cat = categories.find(c => c.id === t.categoryId);
+                           if (cat?.isFocus) {
+                              const start = new Date(`${t.date}T${t.startTime}`);
+                              let end = new Date(`${t.date}T${t.endTime}`);
+                              if (end < start) end = addDays(end, 1);
+                              deepWorkMins += differenceInMinutes(end, start);
+                           }
+                        });
+                        const deepWorkHours = (deepWorkMins / 60).toFixed(1);
+                        
                         return (
-                           <button
+                           <button 
                               key={i}
                               onClick={() => setCurrentDate(day)}
-                              className={`flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${getHeatmapColor(completion)} ${isSelected ? `ring-2 ${themeStyles.ring}` : ''} ${isToday ? 'ring-2 ring-red-500' : ''} hover:scale-105 hover:shadow-lg`}
+                              className={`flex flex-col text-left h-full transition-all relative group ${isSelected ? 'bg-zinc-50 dark:bg-zinc-800/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/10'}`}
                            >
-                              <span className="text-[10px] font-bold uppercase text-zinc-600 dark:text-zinc-300 mb-1">{format(day, 'EEE')}</span>
-                              <span className={`text-2xl font-bold mb-2 ${isToday ? 'text-red-600 dark:text-red-400' : 'text-zinc-800 dark:text-zinc-100'}`}>{format(day, 'd')}</span>
-                              <div className="w-full bg-white/30 dark:bg-black/20 rounded-full h-1.5 overflow-hidden mb-1">
-                                 <div
-                                    className="h-full bg-white dark:bg-zinc-100 rounded-full transition-all"
-                                    style={{ width: `${completion}%` }}
-                                 />
+                              {/* Header Section */}
+                              <div className={`p-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0 ${isSelected ? `border-l-4 ${themeStyles.border.replace('border-', 'border-l-')}` : ''}`}>
+                                 <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[10px] font-bold uppercase text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{format(day, 'EEE')}</span>
+                                    <div className="flex items-center gap-1">
+                                         {dayLog && getMoodIcon(dayLog.score)}
+                                         <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">{dayLog?.score || '-'}</span>
+                                    </div>
+                                 </div>
+                                 <div className="flex justify-between items-end">
+                                    <span className={`text-2xl font-bold leading-none ${isToday ? 'text-red-500' : 'text-zinc-800 dark:text-zinc-200'}`}>{format(day, 'd')}</span>
+                                    <div className="text-right flex flex-col items-end gap-0.5">
+                                         {/* Completion */}
+                                         <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-500" title="Completion">
+                                            <CheckCircle2 size={10} />
+                                            <span className="font-bold">{completion}%</span>
+                                         </div>
+                                         {/* Deep Work */}
+                                         <div className="flex items-center gap-1 text-[10px] text-amber-500" title="Deep Focus Hours">
+                                            <Zap size={10} className="fill-amber-500" />
+                                            <span className="font-bold">{deepWorkHours}h</span>
+                                         </div>
+                                    </div>
+                                 </div>
                               </div>
-                              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200">{completion}%</span>
-                              <span className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1">{completed}/{total}</span>
+                              
+                              {/* Task List Section */}
+                              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar min-h-0 bg-zinc-50/30 dark:bg-zinc-900/30">
+                                 {dayTasks.map(task => {
+                                    const cat = categories.find(c => c.id === task.categoryId);
+                                    return (
+                                       <div key={task.id} className="flex items-center gap-2 group/task opacity-70 hover:opacity-100 transition-opacity">
+                                          <div className={`min-w-[10px] flex justify-center text-zinc-400`} style={{ color: cat?.color }}>
+                                             {getCategoryIcon(cat?.icon, 10)}
+                                          </div>
+                                          <span className={`text-[9px] leading-tight truncate w-full ${task.completed ? 'line-through text-zinc-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
+                                             {task.title}
+                                          </span>
+                                       </div>
+                                    );
+                                 })}
+                              </div>
                            </button>
                         );
                      })}
@@ -2000,55 +1995,6 @@ export default function App() {
       <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} log={todaysLog} onSave={handleSaveReflection} themeStyles={themeStyles} />
       <InsightModal isOpen={isInsightModalOpen} onClose={() => setIsInsightModalOpen(false)} insight={aiInsight} isGenerating={isGeneratingAi} onGenerate={generateInsight} themeStyles={themeStyles} />
       <TemplateManager isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} templates={templates} onSaveCurrent={handleSaveTemplate} onApplyTemplate={handleApplyTemplate} onDeleteTemplate={(id:string)=>setTemplates(t=>t.filter(x=>x.id!==id))} themeStyles={themeStyles} />
-
-      {isDateRangePickerOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 shadow-2xl border dark:border-zinc-700">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold dark:text-white">Custom Date Range</h2>
-              <button onClick={() => setIsDateRangePickerOpen(false)}><X size={20} className="text-zinc-400 hover:text-zinc-200" /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Start Date</label>
-                <input
-                  type="date"
-                  value={customDateRange.start ? format(customDateRange.start, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value ? new Date(e.target.value) : null }))}
-                  className="w-full p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">End Date</label>
-                <input
-                  type="date"
-                  value={customDateRange.end ? format(customDateRange.end, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value ? new Date(e.target.value) : null }))}
-                  className="w-full p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white"
-                />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setIsDateRangePickerOpen(false)}
-                  className="flex-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 py-3 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (customDateRange.start && customDateRange.end) {
-                      setIsDateRangePickerOpen(false);
-                    }
-                  }}
-                  className={`flex-[2] ${themeStyles.bg} ${themeStyles.hover} text-white py-3 rounded-xl font-bold shadow-lg transition-transform active:scale-95`}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
