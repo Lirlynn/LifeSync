@@ -111,7 +111,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "1.0.8"; // Update this before every deploy to track changes
+const APP_VERSION = "1.0.9"; // Update this before every deploy to track changes
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)

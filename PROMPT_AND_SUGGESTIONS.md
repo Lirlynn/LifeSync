@@ -65,3 +65,4 @@ Below is the highly detailed prompt you should use if you were to ask an AI to r
 
 ### Task Management
 *   **Collision Handling:** Tasks overlapping in time dynamically calculate their `left` and `width` CSS properties to prevent visual overlap on the timeline.
+*   **Adaptive Task Layout:** Tasks with short durations (≤ 1 hour) use a horizontal layout (Title/Time | Description) to ensure descriptions remain visible even when height is restricted. Longer tasks use the standard vertical stack.
