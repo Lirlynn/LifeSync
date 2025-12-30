@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Plus, 
@@ -67,7 +66,18 @@ import {
   Users,
   AlertTriangle,
   ExternalLink,
-  Database
+  Database,
+  DollarSign,
+  Wallet,
+  CreditCard,
+  Landmark,
+  PiggyBank,
+  Receipt,
+  Gift,
+  Car,
+  Bus,
+  Train,
+  Bike
 } from 'lucide-react';
 import { 
   format, 
@@ -111,7 +121,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "1.0.10"; // Update this before every deploy to track changes
+const APP_VERSION = "1.0.15"; // Update this before every deploy to track changes
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -258,7 +268,18 @@ const ICON_MAP: Record<string, any> = {
   heart: Heart,
   tag: Tag,
   flag: Flag,
-  users: Users
+  users: Users,
+  dollar: DollarSign,
+  wallet: Wallet,
+  card: CreditCard,
+  bank: Landmark,
+  piggy: PiggyBank,
+  receipt: Receipt,
+  gift: Gift,
+  car: Car,
+  bus: Bus,
+  train: Train,
+  bike: Bike
 };
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
@@ -1112,7 +1133,7 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
            
            {/* Icon Grid for Creation */}
            <div className="grid grid-cols-8 gap-2 mt-1">
-              {iconList.slice(0, 16).map(iconKey => (
+              {iconList.map(iconKey => (
                  <button 
                    key={iconKey} 
                    onClick={() => setSelectedIcon(iconKey)}
@@ -1151,7 +1172,7 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
 
                       {/* Icon Edit Grid */}
                       <div className="grid grid-cols-8 gap-2 mt-1">
-                        {iconList.slice(0, 16).map(iconKey => (
+                        {iconList.map(iconKey => (
                            <button 
                              key={iconKey} 
                              onClick={() => setEditIcon(iconKey)}
@@ -1530,6 +1551,12 @@ export default function App() {
      if (score === 3) return 'text-amber-500';
      return 'text-red-500';
   };
+  
+  const getMoodIcon = (score: number) => {
+     if (score >= 4) return <Smile size={12} className="text-emerald-500" />;
+     if (score === 3) return <Meh size={12} className="text-amber-500" />;
+     return <Frown size={12} className="text-red-500" />;
+  };
 
   if (!user) return <AuthModal isOpen={true} onLogin={setUser} />;
 
@@ -1634,6 +1661,284 @@ export default function App() {
         </div>
       </div>
 
+      {/* RIGHT COLUMN - DASHBOARD - FIXED FIT TO SCREEN */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 relative">
+         {/* Top Navigation Bar */}
+         <div className="px-6 py-5 flex justify-between items-center bg-transparent z-20 shrink-0">
+            <div>
+               <h2 className="text-2xl font-bold dark:text-white tracking-tight">
+                 Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {user.name.split(' ')[0]}
+               </h2>
+               <p className="text-zinc-500 text-sm font-medium mt-0.5">Ready to conquer the day?</p>
+            </div>
+            <div className="flex gap-3 relative items-center">
+               {/* Insight Time Range Filter moved here */}
+               <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl flex text-xs font-bold mr-2">
+                  {(['Daily', 'Weekly', 'Monthly', 'Yearly'] as const).map(range => (
+                    <button
+                      key={range}
+                      onClick={() => setInsightTimeRange(range)}
+                      className={`px-3 py-1.5 rounded-lg transition-all ${insightTimeRange === range ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+               </div>
+
+               <button 
+                 onClick={() => setIsInsightModalOpen(true)}
+                 className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm group`}
+               >
+                  <Sparkles size={16} className={`${themeStyles.text} group-hover:animate-pulse`} />
+                  <span className="dark:text-zinc-200">AI Coach</span>
+               </button>
+               
+               <button 
+                 onClick={() => setIsCatManagerOpen(true)}
+                 className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm"
+                 title="Manage Categories"
+               >
+                  <Tag size={20} />
+               </button>
+
+               <button 
+                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                 className={`p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:${themeStyles.text} transition-colors shadow-sm ${isSettingsOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}
+               >
+                  <Settings size={20} />
+               </button>
+               
+               {/* Settings Dropdown */}
+               <SettingsMenu 
+                 isOpen={isSettingsOpen} 
+                 onClose={() => setIsSettingsOpen(false)}
+                 theme={theme}
+                 setTheme={setTheme}
+                 onImport={handleImport}
+                 onExport={handleExport}
+                 onReset={handleReset}
+                 onLoadSample={handleLoadSample}
+                 onTemplates={() => { setIsSettingsOpen(false); setIsTemplatesOpen(true); }}
+                 onLogout={handleLogout}
+                 user={user}
+                 accentColor={accentColor}
+                 setAccentColor={setAccentColor}
+               />
+            </div>
+         </div>
+
+         {/* Dashboard Content - Fit to Screen Flex Layout */}
+         <div className="flex-1 flex flex-col px-6 pb-6 gap-4 overflow-hidden">
+             
+               {/* Stats Row - Filter removed from here */}
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+                     <div className="flex justify-between items-start mb-2">
+                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Deep Focus</p>
+                         <div className={`p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:${themeStyles.text} transition-colors`}><Zap size={18} /></div>
+                     </div>
+                     <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.deepWorkHours}<span className="text-base text-zinc-400 font-medium ml-1">h</span></h3>
+                     <div className="mt-3 text-xs text-zinc-400 flex items-center gap-1 font-medium">
+                        <Target size={12} /> Target: 4h
+                     </div>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+                     <div className="flex justify-between items-start mb-2">
+                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Total Time</p>
+                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-blue-500 transition-colors"><Clock size={18} /></div>
+                     </div>
+                     <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.totalHours}<span className="text-base text-zinc-400 font-medium ml-1">h</span></h3>
+                     <div className="mt-3 text-xs text-zinc-400 flex items-center gap-1 font-medium">
+                        <span className="text-emerald-500">{analytics.completionRate}%</span> completion
+                     </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+                     <div className="flex justify-between items-start mb-2">
+                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Tasks Done</p>
+                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-emerald-500 transition-colors"><CheckCircle2 size={18} /></div>
+                     </div>
+                     <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.completed}<span className="text-base text-zinc-400 font-medium ml-1">/ {analytics.total}</span></h3>
+                     <div className="mt-3 text-xs text-zinc-400 font-medium">
+                        {analytics.total - analytics.completed} remaining
+                     </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+                     <div className="flex justify-between items-start mb-2">
+                         <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Avg Mood</p>
+                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-amber-500 transition-colors"><Smile size={18} /></div>
+                     </div>
+                     <h3 className="text-4xl font-bold dark:text-white flex items-center gap-2 tracking-tight">
+                        {analytics.avgMood} 
+                        {analytics.avgMood !== '-' && (
+                          <span className={`text-2xl ${Number(analytics.avgMood) >= 4 ? 'text-emerald-500' : Number(analytics.avgMood) >= 3 ? 'text-amber-500' : 'text-red-500'}`}>
+                             {Number(analytics.avgMood) >= 4 ? <Smile size={24}/> : Number(analytics.avgMood) >= 3 ? <Meh size={24}/> : <Frown size={24}/>}
+                          </span>
+                        )}
+                     </h3>
+                     <div className="mt-3 text-xs text-zinc-400 font-medium">
+                        Based on logs
+                     </div>
+                  </div>
+               </div>
+
+               {/* Charts Area - Fixed proportion to allow fit-to-screen */}
+               <div className="shrink-0 h-[32%] min-h-[200px] grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Main Bar Chart */}
+                  <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-full flex flex-col">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><BarChart3 size={20} className="text-zinc-400"/> Activity Distribution</h3>
+                     <div className="flex-1 w-full min-h-0">
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analytics.barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={32}>
+                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#27272a' : '#f4f4f5'} />
+                               <XAxis 
+                                  dataKey="name" 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={<CustomXAxisTick categories={categories} />}
+                                  interval={0}
+                                  height={40}
+                               />
+                               <YAxis axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 10}} />
+                               <Tooltip content={<CustomTooltip />} cursor={{fill: theme==='dark'?'#27272a':'#f4f4f5', opacity: 0.4}} />
+                               <Bar dataKey="completed" stackId="a" radius={[0, 0, 4, 4]}>
+                                  {analytics.barData.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                               </Bar>
+                               <Bar dataKey="pending" stackId="a" radius={[4, 4, 0, 0]}>
+                                  {analytics.barData.map((entry: any, index: number) => (
+                                     <Cell key={`cell-${index}`} fill={entry.color} opacity={0.3} />
+                                  ))}
+                               </Bar>
+                            </BarChart>
+                         </ResponsiveContainer>
+                     </div>
+                  </div>
+
+                  {/* Top Activities List - Optimized to not scroll */}
+                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col h-full overflow-hidden">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><TrendingUp size={20} className="text-zinc-400"/> Top Activities</h3>
+                     
+                     {analytics.topActivities.length > 0 ? (
+                        <div className="flex-1 flex flex-col justify-between overflow-hidden min-h-0">
+                           {analytics.topActivities.map((activity: any, i: number) => (
+                              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50 h-[30%]">
+                                 <div className="font-bold text-lg text-zinc-300 w-5 text-center shrink-0">{i + 1}</div>
+                                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
+                                    {getCategoryIcon(activity.icon, 18)}
+                                 </div>
+                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                    <p className="font-bold text-sm dark:text-zinc-200 truncate leading-none mb-1.5">{activity.name}</p>
+                                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                                       <div className="h-full rounded-full" style={{width: `${Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100)}%`, background: activity.color}}></div>
+                                    </div>
+                                 </div>
+                                 <div className="text-right shrink-0 flex flex-col justify-center">
+                                    <span className="font-bold text-sm dark:text-white block leading-none">{activity.hours}</span>
+                                    <span className="text-[10px] text-zinc-500 block mt-0.5">hrs</span>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm">
+                           <Activity size={32} className="mb-2 opacity-20" />
+                           No activity data yet
+                        </div>
+                     )}
+                  </div>
+               </div>
+
+               {/* Week at a Glance - Redesigned & Flex Fill */}
+               <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <div className="px-5 pt-5 pb-3 shrink-0">
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><CalendarIcon size={20} className="text-zinc-400"/> Week at a Glance</h3>
+                  </div>
+                  <div className="grid grid-cols-7 h-full divide-x divide-zinc-100 dark:divide-zinc-800 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                     {daysInWeek.map((day, i) => {
+                        const dayStr = format(day, 'yyyy-MM-dd');
+                        const dayTasks = tasks.filter(t => t.date === dayStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                        const dayLog = logs.find(l => l.date === dayStr);
+                        const isToday = isSameDay(day, new Date());
+                        const isSelected = isSameDay(day, currentDate);
+                        
+                        const total = dayTasks.length;
+                        const completed = dayTasks.filter(t => t.completed).length;
+                        const completion = total > 0 ? Math.round((completed / total) * 100) : 0;
+                        
+                        // Calculate Deep Work for the day
+                        let deepWorkMins = 0;
+                        dayTasks.forEach(t => {
+                           const cat = categories.find(c => c.id === t.categoryId);
+                           if (cat?.isFocus) {
+                              const start = new Date(`${t.date}T${t.startTime}`);
+                              let end = new Date(`${t.date}T${t.endTime}`);
+                              if (end < start) end = addDays(end, 1);
+                              deepWorkMins += differenceInMinutes(end, start);
+                           }
+                        });
+                        const deepWorkHours = (deepWorkMins / 60).toFixed(1);
+                        
+                        return (
+                           <button 
+                              key={i}
+                              onClick={() => setCurrentDate(day)}
+                              className={`flex flex-col text-left h-full transition-all relative group ${isSelected ? 'bg-zinc-50 dark:bg-zinc-800/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/10'}`}
+                           >
+                              {/* Header Section */}
+                              <div className={`p-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0 ${isSelected ? `border-l-4 ${themeStyles.border.replace('border-', 'border-l-')}` : ''}`}>
+                                 <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[10px] font-bold uppercase text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{format(day, 'EEE')}</span>
+                                    <div className="flex items-center gap-1">
+                                         {dayLog && getMoodIcon(dayLog.score)}
+                                         <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">{dayLog?.score || '-'}</span>
+                                    </div>
+                                 </div>
+                                 <div className="flex justify-between items-end">
+                                    <span className={`text-2xl font-bold leading-none ${isToday ? 'text-red-500' : 'text-zinc-800 dark:text-zinc-200'}`}>{format(day, 'd')}</span>
+                                    <div className="text-right flex flex-col items-end gap-0.5">
+                                         {/* Completion */}
+                                         <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-500" title="Completion">
+                                            <CheckCircle2 size={10} />
+                                            <span className="font-bold">{completion}%</span>
+                                         </div>
+                                         {/* Deep Work */}
+                                         <div className="flex items-center gap-1 text-[10px] text-amber-500" title="Deep Focus Hours">
+                                            <Zap size={10} className="fill-amber-500" />
+                                            <span className="font-bold">{deepWorkHours}h</span>
+                                         </div>
+                                    </div>
+                                 </div>
+                              </div>
+                              
+                              {/* Task List Section */}
+                              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 custom-scrollbar min-h-0 bg-zinc-50/30 dark:bg-zinc-900/30">
+                                 {dayTasks.map(task => {
+                                    const cat = categories.find(c => c.id === task.categoryId);
+                                    return (
+                                       <div key={task.id} className="flex items-center gap-2 group/task opacity-70 hover:opacity-100 transition-opacity">
+                                          <div className={`min-w-[10px] flex justify-center text-zinc-400`} style={{ color: cat?.color }}>
+                                             {getCategoryIcon(cat?.icon, 10)}
+                                          </div>
+                                          <span className={`text-[9px] leading-tight truncate w-full ${task.completed ? 'line-through text-zinc-400' : 'text-zinc-600 dark:text-zinc-300'}`}>
+                                             {task.title}
+                                          </span>
+                                       </div>
+                                    );
+                                 })}
+                              </div>
+                           </button>
+                        );
+                     })}
+                  </div>
+               </div>
+
+         </div>
+      </div>
+
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 shadow-2xl border dark:border-zinc-700">
@@ -1686,6 +1991,10 @@ export default function App() {
           </div>
         </div>
       )}
+      <CategoryManager isOpen={isCatManagerOpen} onClose={() => setIsCatManagerOpen(false)} categories={categories} setCategories={setCategories} themeStyles={themeStyles} />
+      <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} log={todaysLog} onSave={handleSaveReflection} themeStyles={themeStyles} />
+      <InsightModal isOpen={isInsightModalOpen} onClose={() => setIsInsightModalOpen(false)} insight={aiInsight} isGenerating={isGeneratingAi} onGenerate={generateInsight} themeStyles={themeStyles} />
+      <TemplateManager isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} templates={templates} onSaveCurrent={handleSaveTemplate} onApplyTemplate={handleApplyTemplate} onDeleteTemplate={(id:string)=>setTemplates(t=>t.filter(x=>x.id!==id))} themeStyles={themeStyles} />
     </div>
   );
 }
