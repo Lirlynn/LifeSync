@@ -77,7 +77,8 @@ import {
   Car,
   Bus,
   Train,
-  Bike
+  Bike,
+  ListFilter
 } from 'lucide-react';
 import { 
   format, 
@@ -121,7 +122,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "1.0.15"; // Update this before every deploy to track changes
+const APP_VERSION = "2.0.0"; // V2 Update
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -1248,7 +1249,7 @@ export default function App() {
   const [isInsightModalOpen, setIsInsightModalOpen] = useState(false);
   
   const [editingTask, setEditingTask] = useState<Partial<Task> | undefined>(undefined);
-  const [insightTimeRange, setInsightTimeRange] = useState<TimeRange | 'Monthly' | 'Yearly'>('Daily');
+  const [insightTimeRange, setInsightTimeRange] = useState<TimeRange | 'Monthly' | 'Yearly' | 'Custom'>('Daily');
   const [aiInsight, setAiInsight] = useState<string>("");
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   
@@ -1344,6 +1345,10 @@ export default function App() {
     } else if (insightTimeRange === 'Yearly') {
       filteredTasks = tasks.filter(t => isSameYear(parseDateKey(t.date), currentDate));
       filteredLogs = logs.filter(l => isSameYear(parseDateKey(l.date), currentDate));
+    } else {
+      // Default fallback for custom or errors
+      filteredTasks = tasks.filter(t => t.date === formattedDate);
+      filteredLogs = logs.filter(l => l.date === formattedDate);
     }
 
     // Calculate Stats
@@ -1399,10 +1404,9 @@ export default function App() {
       }))
       .sort((a, b) => b.total - a.total);
 
-    // Top Activities
+    // Top Activities - Show all activities to replace the chart
     const topActivities = Object.entries(catDurations)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
       .map(([name, mins]) => {
          const cat = categories.find(c => c.name === name);
          return { 
@@ -1674,7 +1678,7 @@ export default function App() {
             <div className="flex gap-3 relative items-center">
                {/* Insight Time Range Filter moved here */}
                <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl flex text-xs font-bold mr-2">
-                  {(['Daily', 'Weekly', 'Monthly', 'Yearly'] as const).map(range => (
+                  {(['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'] as const).map(range => (
                     <button
                       key={range}
                       onClick={() => setInsightTimeRange(range)}
@@ -1684,14 +1688,6 @@ export default function App() {
                     </button>
                   ))}
                </div>
-
-               <button 
-                 onClick={() => setIsInsightModalOpen(true)}
-                 className={`flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold text-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm group`}
-               >
-                  <Sparkles size={16} className={`${themeStyles.text} group-hover:animate-pulse`} />
-                  <span className="dark:text-zinc-200">AI Coach</span>
-               </button>
                
                <button 
                  onClick={() => setIsCatManagerOpen(true)}
@@ -1730,12 +1726,12 @@ export default function App() {
          {/* Dashboard Content - Fit to Screen Flex Layout */}
          <div className="flex-1 flex flex-col px-6 pb-6 gap-4 overflow-hidden">
              
-               {/* Stats Row - Filter removed from here */}
+               {/* Stats Row */}
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
                          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Deep Focus</p>
-                         <div className={`p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:${themeStyles.text} transition-colors`}><Zap size={18} /></div>
+                         <div className={`p-2 rounded-xl bg-yellow-500/10 text-yellow-500 transition-colors`}><Zap size={18} /></div>
                      </div>
                      <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.deepWorkHours}<span className="text-base text-zinc-400 font-medium ml-1">h</span></h3>
                      <div className="mt-3 text-xs text-zinc-400 flex items-center gap-1 font-medium">
@@ -1746,7 +1742,7 @@ export default function App() {
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
                          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Total Time</p>
-                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-blue-500 transition-colors"><Clock size={18} /></div>
+                         <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-500 transition-colors"><Clock size={18} /></div>
                      </div>
                      <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.totalHours}<span className="text-base text-zinc-400 font-medium ml-1">h</span></h3>
                      <div className="mt-3 text-xs text-zinc-400 flex items-center gap-1 font-medium">
@@ -1757,7 +1753,7 @@ export default function App() {
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
                          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Tasks Done</p>
-                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-emerald-500 transition-colors"><CheckCircle2 size={18} /></div>
+                         <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 transition-colors"><CheckCircle2 size={18} /></div>
                      </div>
                      <h3 className="text-4xl font-bold dark:text-white tracking-tight">{analytics.completed}<span className="text-base text-zinc-400 font-medium ml-1">/ {analytics.total}</span></h3>
                      <div className="mt-3 text-xs text-zinc-400 font-medium">
@@ -1768,7 +1764,7 @@ export default function App() {
                   <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
                      <div className="flex justify-between items-start mb-2">
                          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Avg Mood</p>
-                         <div className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:text-amber-500 transition-colors"><Smile size={18} /></div>
+                         <div className="p-2 rounded-xl bg-purple-500/10 text-purple-500 transition-colors"><Smile size={18} /></div>
                      </div>
                      <h3 className="text-4xl font-bold dark:text-white flex items-center gap-2 tracking-tight">
                         {analytics.avgMood} 
@@ -1784,64 +1780,48 @@ export default function App() {
                   </div>
                </div>
 
-               {/* Charts Area - Fixed proportion to allow fit-to-screen */}
-               <div className="shrink-0 h-[32%] min-h-[200px] grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Main Bar Chart */}
-                  <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm h-full flex flex-col">
-                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><BarChart3 size={20} className="text-zinc-400"/> Activity Distribution</h3>
-                     <div className="flex-1 w-full min-h-0">
-                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analytics.barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barSize={32}>
-                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#27272a' : '#f4f4f5'} />
-                               <XAxis 
-                                  dataKey="name" 
-                                  axisLine={false} 
-                                  tickLine={false} 
-                                  tick={<CustomXAxisTick categories={categories} />}
-                                  interval={0}
-                                  height={40}
-                               />
-                               <YAxis axisLine={false} tickLine={false} tick={{fill: '#a1a1aa', fontSize: 10}} />
-                               <Tooltip content={<CustomTooltip />} cursor={{fill: theme==='dark'?'#27272a':'#f4f4f5', opacity: 0.4}} />
-                               <Bar dataKey="completed" stackId="a" radius={[0, 0, 4, 4]}>
-                                  {analytics.barData.map((entry: any, index: number) => (
-                                     <Cell key={`cell-${index}`} fill={entry.color} />
-                                  ))}
-                               </Bar>
-                               <Bar dataKey="pending" stackId="a" radius={[4, 4, 0, 0]}>
-                                  {analytics.barData.map((entry: any, index: number) => (
-                                     <Cell key={`cell-${index}`} fill={entry.color} opacity={0.3} />
-                                  ))}
-                               </Bar>
-                            </BarChart>
-                         </ResponsiveContainer>
+               {/* Charts Area - Modified: Removed Chart, Expanded List */}
+               <div className="shrink-0 h-[32%] min-h-[200px] flex">
+                  {/* Top Activities List - Expanded to full width */}
+                  <div className="w-full bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col h-full overflow-hidden">
+                     <div className="flex items-center justify-between mb-4 shrink-0">
+                         <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><ListFilter size={20} className="text-zinc-400"/> Activity Breakdown</h3>
+                         <span className="text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded">Sorted by duration</span>
                      </div>
-                  </div>
-
-                  {/* Top Activities List - Optimized to not scroll */}
-                  <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col h-full overflow-hidden">
-                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2 mb-4 shrink-0"><TrendingUp size={20} className="text-zinc-400"/> Top Activities</h3>
                      
                      {analytics.topActivities.length > 0 ? (
-                        <div className="flex-1 flex flex-col justify-between overflow-hidden min-h-0">
-                           {analytics.topActivities.map((activity: any, i: number) => (
-                              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/50 h-[30%]">
-                                 <div className="font-bold text-lg text-zinc-300 w-5 text-center shrink-0">{i + 1}</div>
-                                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
-                                    {getCategoryIcon(activity.icon, 18)}
-                                 </div>
-                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                    <p className="font-bold text-sm dark:text-zinc-200 truncate leading-none mb-1.5">{activity.name}</p>
-                                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
-                                       <div className="h-full rounded-full" style={{width: `${Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100)}%`, background: activity.color}}></div>
-                                    </div>
-                                 </div>
-                                 <div className="text-right shrink-0 flex flex-col justify-center">
-                                    <span className="font-bold text-sm dark:text-white block leading-none">{activity.hours}</span>
-                                    <span className="text-[10px] text-zinc-500 block mt-0.5">hrs</span>
-                                 </div>
-                              </div>
-                           ))}
+                        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-2">
+                           <div className="flex flex-col gap-4">
+                           {analytics.topActivities.map((activity: any, i: number) => {
+                              const percentage = Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100);
+                              return (
+                                <div key={i} className="flex items-center gap-4">
+                                   <div className="font-bold text-sm text-zinc-300 w-4 text-center shrink-0">{i + 1}</div>
+                                   
+                                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
+                                      {getCategoryIcon(activity.icon, 18)}
+                                   </div>
+                                   
+                                   <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-end mb-1.5">
+                                          <p className="font-bold text-sm dark:text-zinc-200 truncate leading-none">{activity.name}</p>
+                                          <div className="flex items-baseline gap-1">
+                                             <span className="font-bold text-sm dark:text-white">{activity.hours}</span>
+                                             <span className="text-[10px] text-zinc-500">hrs</span>
+                                          </div>
+                                      </div>
+                                      {/* New Visual Progress Bar */}
+                                      <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 h-2 rounded-full overflow-hidden">
+                                         <div 
+                                            className="h-full rounded-full transition-all duration-500" 
+                                            style={{ width: `${percentage}%`, background: activity.color }}
+                                         />
+                                      </div>
+                                   </div>
+                                </div>
+                              );
+                           })}
+                           </div>
                         </div>
                      ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm">
@@ -1852,7 +1832,7 @@ export default function App() {
                   </div>
                </div>
 
-               {/* Week at a Glance - Redesigned & Flex Fill */}
+               {/* Week at a Glance */}
                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
                   <div className="px-5 pt-5 pb-3 shrink-0">
                      <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><CalendarIcon size={20} className="text-zinc-400"/> Week at a Glance</h3>
