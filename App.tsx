@@ -1228,6 +1228,46 @@ const CustomXAxisTick = ({ x, y, payload, categories }: any) => {
   );
 };
 
+const CustomDateRangeModal = ({ isOpen, onClose, range, setRange, themeStyles }: any) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 border dark:border-zinc-700 shadow-xl">
+        <div className="flex justify-between items-center mb-4">
+           <h3 className="font-bold dark:text-white text-lg">Select Date Range</h3>
+           <button onClick={onClose}><X size={20} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Start Date</label>
+            <input 
+              type="date" 
+              value={range.start} 
+              onChange={e => setRange({...range, start: e.target.value})} 
+              className="w-full bg-zinc-100 dark:bg-zinc-800 p-3 rounded-xl outline-none dark:text-white font-medium border border-transparent focus:border-indigo-500 transition-colors" 
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">End Date</label>
+            <input 
+              type="date" 
+              value={range.end} 
+              onChange={e => setRange({...range, end: e.target.value})} 
+              className="w-full bg-zinc-100 dark:bg-zinc-800 p-3 rounded-xl outline-none dark:text-white font-medium border border-transparent focus:border-indigo-500 transition-colors" 
+            />
+          </div>
+          <button 
+            onClick={onClose} 
+            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg shadow-indigo-200 dark:shadow-none ${themeStyles.bg} ${themeStyles.hover} transition-all active:scale-[0.98] mt-2`}
+          >
+            Apply Range
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -1258,6 +1298,13 @@ export default function App() {
   // Custom Time Picker State for Form
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:00');
+
+  // Custom Date Range State
+  const [isCustomDateModalOpen, setIsCustomDateModalOpen] = useState(false);
+  const [customRange, setCustomRange] = useState({
+    start: format(new Date(), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd')
+  });
 
   const themeStyles = COLOR_THEMES[accentColor];
 
@@ -1345,6 +1392,17 @@ export default function App() {
     } else if (insightTimeRange === 'Yearly') {
       filteredTasks = tasks.filter(t => isSameYear(parseDateKey(t.date), currentDate));
       filteredLogs = logs.filter(l => isSameYear(parseDateKey(l.date), currentDate));
+    } else if (insightTimeRange === 'Custom') {
+      const start = parseDateKey(customRange.start);
+      const end = parseDateKey(customRange.end);
+      filteredTasks = tasks.filter(t => {
+         const d = parseDateKey(t.date);
+         return d >= start && d <= end;
+      });
+      filteredLogs = logs.filter(l => {
+         const d = parseDateKey(l.date);
+         return d >= start && d <= end;
+      });
     } else {
       // Default fallback for custom or errors
       filteredTasks = tasks.filter(t => t.date === formattedDate);
@@ -1431,7 +1489,7 @@ export default function App() {
       topActivities,
       avgMood
     };
-  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate]);
+  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate, customRange]);
 
   const handleSaveTask = (formData: any) => {
     const newTask = { ...formData, id: formData.id || crypto.randomUUID(), date: formattedDate, completed: formData.completed || false };
@@ -1677,12 +1735,15 @@ export default function App() {
             </div>
             <div className="flex gap-3 relative items-center">
                {/* Insight Time Range Filter moved here */}
-               <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl flex text-xs font-bold mr-2">
+               <div className="bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl flex items-center h-10 mr-2">
                   {(['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'] as const).map(range => (
                     <button
                       key={range}
-                      onClick={() => setInsightTimeRange(range)}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${insightTimeRange === range ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                      onClick={() => {
+                        setInsightTimeRange(range);
+                        if (range === 'Custom') setIsCustomDateModalOpen(true);
+                      }}
+                      className={`px-3 h-full flex items-center justify-center rounded-lg text-xs font-bold transition-all ${insightTimeRange === range ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
                     >
                       {range}
                     </button>
@@ -1691,7 +1752,7 @@ export default function App() {
                
                <button 
                  onClick={() => setIsCatManagerOpen(true)}
-                 className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm"
+                 className="h-10 w-10 flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors shadow-sm"
                  title="Manage Categories"
                >
                   <Tag size={20} />
@@ -1699,7 +1760,7 @@ export default function App() {
 
                <button 
                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                 className={`p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:${themeStyles.text} transition-colors shadow-sm ${isSettingsOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}
+                 className={`h-10 w-10 flex items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-500 hover:${themeStyles.text} transition-colors shadow-sm ${isSettingsOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}`}
                >
                   <Settings size={20} />
                </button>
@@ -1975,6 +2036,7 @@ export default function App() {
       <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} log={todaysLog} onSave={handleSaveReflection} themeStyles={themeStyles} />
       <InsightModal isOpen={isInsightModalOpen} onClose={() => setIsInsightModalOpen(false)} insight={aiInsight} isGenerating={isGeneratingAi} onGenerate={generateInsight} themeStyles={themeStyles} />
       <TemplateManager isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} templates={templates} onSaveCurrent={handleSaveTemplate} onApplyTemplate={handleApplyTemplate} onDeleteTemplate={(id:string)=>setTemplates(t=>t.filter(x=>x.id!==id))} themeStyles={themeStyles} />
+      <CustomDateRangeModal isOpen={isCustomDateModalOpen} onClose={() => setIsCustomDateModalOpen(false)} range={customRange} setRange={setCustomRange} themeStyles={themeStyles} />
     </div>
   );
 }
