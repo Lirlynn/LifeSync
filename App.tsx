@@ -66,7 +66,8 @@ import {
   MoreHorizontal,
   Users,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 import { 
   format, 
@@ -110,7 +111,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "1.0.4"; // Update this before every deploy to track changes
+const APP_VERSION = "1.0.8"; // Update this before every deploy to track changes
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -461,6 +462,92 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
 };
 
 // --- Sub-Components ---
+
+// Minimalist 24h Time Picker
+const CustomTimePicker = ({ value, onChange, label, themeStyles }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Parse HH:mm
+  const [hours, minutes] = value ? value.split(':') : ['09', '00'];
+
+  const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  const minuteOptions = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const handleHourSelect = (h: string) => {
+    onChange(`${h}:${minutes}`);
+  };
+
+  const handleMinuteSelect = (m: string) => {
+    onChange(`${hours}:${m}`);
+    setIsOpen(false); // Close after picking minute
+  };
+
+  return (
+    <div className="flex-1 relative" ref={containerRef}>
+       {label && <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">{label}</label>}
+       <button
+         type="button"
+         onClick={() => setIsOpen(!isOpen)}
+         className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 text-left flex items-center justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+       >
+         <span className="font-mono text-lg font-medium dark:text-white tracking-wider">{value || '09:00'}</span>
+         <Clock size={16} className="text-zinc-400" />
+       </button>
+       
+       <input type="hidden" name={label ? label.toLowerCase().replace(' ', '') : 'time'} value={value} />
+
+       {isOpen && (
+         <div className="absolute top-full left-0 w-64 mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-[60] flex overflow-hidden">
+            <div className="flex-1 border-r border-zinc-100 dark:border-zinc-800">
+               <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">Hour</div>
+               <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-1">
+                    {hourOptions.map(h => (
+                      <button 
+                        key={h} 
+                        type="button"
+                        onClick={() => handleHourSelect(h)}
+                        className={`py-1.5 rounded-lg text-sm font-medium transition-colors ${h === hours ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-300'}`}
+                      >
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+               </div>
+            </div>
+            <div className="flex-1">
+               <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">Minute</div>
+               <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                   <div className="grid grid-cols-1 gap-1">
+                    {minuteOptions.map(m => (
+                      <button 
+                        key={m} 
+                        type="button"
+                        onClick={() => handleMinuteSelect(m)}
+                        className={`py-1.5 rounded-lg text-sm font-medium transition-colors ${m === minutes ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-300'}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                   </div>
+               </div>
+            </div>
+         </div>
+       )}
+    </div>
+  );
+};
 
 // Improved Custom Tooltip
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -857,7 +944,7 @@ const InsightModal = ({ isOpen, onClose, insight, isGenerating, onGenerate, them
   );
 };
 
-const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, onReset, onTemplates, onLogout, user, accentColor, setAccentColor }: any) => {
+const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, onReset, onLoadSample, onTemplates, onLogout, user, accentColor, setAccentColor }: any) => {
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -900,8 +987,8 @@ const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, on
            <div className="flex items-center gap-2">{theme === 'light' ? <Sun size={18} /> : <Moon size={18} />}<span>{theme === 'light' ? 'Light Mode' : 'Dark Mode'}</span></div>
          </button>
          <button onClick={onTemplates} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"><Layout size={18} /><span>Weekly Templates</span></button>
-         <label className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"><Upload size={18} /><span>Import JSON</span><input type="file" accept=".json" onChange={onImport} className="hidden" /></label>
-         <button onClick={onExport} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"><Share size={18} /><span>Export Data</span></button>
+         <label className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"><Upload size={18} /><span>Import Data</span><input type="file" accept=".json" onChange={onImport} className="hidden" /></label>
+         <button onClick={onExport} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"><Download size={18} /><span>Export Data</span></button>
          <button 
            type="button"
            onClick={(e) => { 
@@ -915,6 +1002,9 @@ const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, on
            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors"
          >
             <Trash2 size={18} /><span>Reset Data</span>
+         </button>
+         <button onClick={onLoadSample} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
+           <Database size={18} /><span>Load Sample Data</span>
          </button>
        </div>
        <div className="border-t border-zinc-100 dark:border-zinc-800 p-2">
@@ -1086,7 +1176,7 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                        </div>
                     </div>
                     <div className="flex items-center gap-1">
-                       {!c.isDefault && <button onClick={()=>setCategories(categories.filter((cat:any)=>cat.id!==c.id))} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"><Trash2 size={14}/></button>}
+                       <button onClick={()=>setCategories(categories.filter((cat:any)=>cat.id!==c.id))} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"><Trash2 size={14}/></button>
                        <button onClick={() => handleStartEdit(c)} className={`p-1.5 text-zinc-400 hover:${themeStyles.text} hover:${themeStyles.bgLight} dark:hover:${themeStyles.bgLight}/10 rounded transition-colors`}><Edit2 size={14}/></button>
                     </div>
                    </>
@@ -1142,6 +1232,10 @@ export default function App() {
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   
   const [taskImpact, setTaskImpact] = useState(5);
+  
+  // Custom Time Picker State for Form
+  const [formStartTime, setFormStartTime] = useState('09:00');
+  const [formEndTime, setFormEndTime] = useState('10:00');
 
   const themeStyles = COLOR_THEMES[accentColor];
 
@@ -1188,6 +1282,8 @@ export default function App() {
   useEffect(() => {
      if (isTaskModalOpen) {
         setTaskImpact(editingTask?.impact || 5);
+        setFormStartTime(editingTask?.startTime || '09:00');
+        setFormEndTime(editingTask?.endTime || '10:00');
      }
   }, [isTaskModalOpen, editingTask]);
 
@@ -1368,9 +1464,61 @@ export default function App() {
     setIsTemplatesOpen(false);
   };
 
-  const handleImport = (e: any) => {}; 
-  const handleExport = () => {};
-  const handleReset = () => { setTasks([]); setLogs([]); };
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data.tasks) setTasks(data.tasks);
+        if (data.logs) setLogs(data.logs);
+        if (data.categories) setCategories(data.categories);
+        if (data.templates) setTemplates(data.templates);
+        setIsSettingsOpen(false);
+      } catch (err) {
+        console.error(err);
+        alert('Failed to import data. Invalid JSON.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExport = () => {
+    const data = {
+      version: APP_VERSION,
+      timestamp: new Date().toISOString(),
+      tasks,
+      logs,
+      categories,
+      templates,
+      user: { name: user?.name, email: user?.email } 
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lifesync-backup-${format(new Date(), 'yyyy-MM-dd-HHmm')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadSample = () => {
+    if (window.confirm('This will overwrite your current schedule with sample data. Continue?')) {
+      const { tasks: sampleTasks, logs: sampleLogs } = generateMockData();
+      setTasks(sampleTasks);
+      setLogs(sampleLogs);
+      setIsSettingsOpen(false);
+    }
+  };
+
+  const handleReset = () => { 
+    setTasks([]); 
+    setLogs([]); 
+  };
+  
   const getPosition = (timeStr: string) => {
     const [h, m] = timeStr.split(':').map(Number);
     const effH = h < TIME_START_HOUR ? h + 24 : h;
@@ -1387,8 +1535,8 @@ export default function App() {
 
   return (
     <div className={`flex flex-col lg:flex-row h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 font-sans transition-colors duration-300`}>
-      {/* LEFT COLUMN */}
-      <div className="w-full lg:w-5/12 xl:w-5/12 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-full relative z-10 shadow-xl">
+      {/* LEFT COLUMN - TIMELINE */}
+      <div className="w-full lg:w-5/12 xl:w-5/12 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-full relative z-10 shadow-xl overflow-hidden min-h-0">
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-20 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
              <div className="bg-zinc-100 dark:bg-zinc-800 p-2.5 rounded-xl"><CalendarIcon className={themeStyles.text} size={20} /></div>
@@ -1419,7 +1567,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto relative no-scrollbar bg-zinc-50/30 dark:bg-zinc-950/30">
+        <div className="flex-1 overflow-y-auto relative no-scrollbar bg-zinc-50/30 dark:bg-zinc-950/30 min-h-0">
           <div className="relative w-full" style={{ height: `${TIMELINE_HEIGHT + 100}px` }}>
             {Array.from({ length: TIME_END_HOUR - TIME_START_HOUR }).map((_, i) => (
               <div key={i} className="absolute w-full border-b border-zinc-100 dark:border-zinc-800 flex items-start group" style={{ top: i * PIXELS_PER_HOUR, height: PIXELS_PER_HOUR }}>
@@ -1441,20 +1589,41 @@ export default function App() {
               const prevTask = idx > 0 ? todaysTasks[idx - 1] : null;
               const isOverlapping = prevTask && getPosition(prevTask.endTime) > top;
               const widthClass = isOverlapping ? 'left-[calc(4rem+45%)] right-2 w-[45%]' : 'left-20 right-4';
+              
+              // New logic for short tasks (approx 1 hour or less)
+              const isShort = height <= 60; // 1 hour is 54px
 
               return (
-                <div key={task.id} className={`absolute ${widthClass} rounded-lg border-l-[3px] p-2 flex flex-col justify-center transition-all cursor-pointer hover:z-20 group shadow-sm hover:shadow-lg ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} style={{ top: `${top}px`, height: `${height}px`, borderLeftColor: task.completed ? undefined : catConfig.color }} onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}>
+                <div key={task.id} className={`absolute ${widthClass} rounded-lg border-l-[3px] p-2 flex flex-col justify-center transition-all cursor-pointer group shadow-sm hover:shadow-2xl hover:z-50 hover:h-auto hover:min-h-fit ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} style={{ top: `${top}px`, height: `${height}px`, minHeight: `${height}px`, borderLeftColor: task.completed ? undefined : catConfig.color }} onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}>
                   <div className="flex items-start gap-3 overflow-hidden h-full p-1">
                     <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                        <div className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-colors ${task.completed ? 'bg-zinc-400 border-zinc-400' : `bg-white border-zinc-300 ${themeStyles.hoverBorder}`}`} onClick={() => setTasks(ts => ts.map(t => t.id === task.id ? {...t, completed: !t.completed} : t))}>{task.completed && <Check size={10} className="text-white" />}</div>
                     </div>
-                    <div className="min-w-0 flex-1 flex flex-col h-full">
-                      <div className="flex justify-between items-start"><h3 className={`font-bold text-sm leading-tight truncate ${task.completed && 'line-through text-zinc-500'}`}>{task.title}</h3></div>
-                      <div className="flex items-center gap-2 mt-0.5 mb-1"><span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-1.5 rounded">{task.startTime}-{task.endTime}</span></div>
-                      {task.description && (
-                         <p className={`text-xs leading-snug line-clamp-3 ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
-                           {task.description}
-                         </p>
+                    <div className="min-w-0 flex-1 h-full">
+                      {isShort ? (
+                         // Horizontal Layout for Short Tasks
+                         <div className="flex items-center gap-2 h-full">
+                            <div className="flex-shrink-0 flex flex-col justify-center min-w-[30%] max-w-[50%]">
+                               <h3 className={`font-bold text-xs truncate leading-tight ${task.completed ? 'line-through text-zinc-500' : ''}`}>{task.title}</h3>
+                               <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">{task.startTime}-{task.endTime}</span>
+                            </div>
+                            {task.description && (
+                               <div className="flex-1 border-l border-zinc-200 dark:border-zinc-700 pl-2 min-w-0 h-full flex items-center">
+                                  <p className={`text-[10px] truncate ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>{task.description}</p>
+                               </div>
+                            )}
+                         </div>
+                      ) : (
+                         // Standard Vertical Layout
+                         <div className="flex flex-col h-full">
+                            <div className="flex justify-between items-start"><h3 className={`font-bold text-sm leading-tight truncate ${task.completed && 'line-through text-zinc-500'}`}>{task.title}</h3></div>
+                            <div className="flex items-center gap-2 mt-0.5 mb-1"><span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-1.5 rounded">{task.startTime}-{task.endTime}</span></div>
+                            {task.description && (
+                               <p className={`text-xs leading-snug line-clamp-3 group-hover:line-clamp-none ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
+                                 {task.description}
+                               </p>
+                            )}
+                         </div>
                       )}
                     </div>
                   </div>
@@ -1465,8 +1634,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* RIGHT COLUMN - NEW DASHBOARD LAYOUT */}
-      <div className="flex-1 flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
+      {/* RIGHT COLUMN - DASHBOARD */}
+      <div className="flex-1 flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 overflow-hidden min-h-0">
         <div className="p-4 flex justify-between items-center text-zinc-500 border-b border-transparent dark:border-zinc-900 shrink-0">
            <div className="flex gap-2">
              <button onClick={() => setIsInsightModalOpen(true)} className={`flex items-center gap-2 px-4 py-2 ${themeStyles.bg} ${themeStyles.hover} text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors shadow-lg shadow-indigo-500/20`}>
@@ -1476,13 +1645,13 @@ export default function App() {
            <div className="flex gap-2 relative">
              <button onClick={() => setIsCatManagerOpen(true)} className="hidden md:flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 rounded-lg transition-colors text-[10px] font-bold uppercase tracking-wider"><Settings size={16} /> Categories</button>
              <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 rounded-lg transition-colors text-zinc-700 dark:text-white"><MoreVertical size={18} /></button>
-             <SettingsMenu isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} onImport={handleImport} onExport={handleExport} onReset={handleReset} onTemplates={() => { setIsSettingsOpen(false); setIsTemplatesOpen(true); }} onLogout={() => { handleLogout(); setIsSettingsOpen(false); }} user={user} accentColor={accentColor} setAccentColor={setAccentColor} />
+             <SettingsMenu isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} theme={theme} setTheme={setTheme} onImport={handleImport} onExport={handleExport} onReset={handleReset} onLoadSample={handleLoadSample} onTemplates={() => { setIsSettingsOpen(false); setIsTemplatesOpen(true); }} onLogout={() => { handleLogout(); setIsSettingsOpen(false); }} user={user} accentColor={accentColor} setAccentColor={setAccentColor} />
            </div>
         </div>
 
-        <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+        <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
           
-          {/* MOVED: Filter Row to Top */}
+          {/* Filter Row */}
           <div className="flex justify-between items-center px-1 shrink-0">
              <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Analytics & Insights</h2>
              <div className="flex bg-zinc-200 dark:bg-zinc-800 p-1 rounded-lg">
@@ -1537,9 +1706,9 @@ export default function App() {
           </div>
           
           {/* Row 2: Charts & Insights Split */}
-          <div className="flex flex-col xl:flex-row gap-4 flex-1 min-h-0">
+          <div className="flex flex-col xl:flex-row gap-4 flex-1 min-h-[300px]">
              {/* Chart */}
-             <div className="flex-[3] bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col min-h-[180px]">
+             <div className="flex-[3] bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col min-h-[220px]">
                 <div className="flex items-center justify-between mb-4 min-h-[32px]">
                    <h3 className="text-xs font-bold uppercase tracking-wider dark:text-white flex items-center gap-2"><BarChart3 size={14} className="text-zinc-400"/>Activity Distribution</h3>
                 </div>
@@ -1549,7 +1718,6 @@ export default function App() {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.1} />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={<CustomXAxisTick categories={categories} />} interval={0} />
                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} />
-                        {/* REPLACED: Use CustomTooltip instead of standard Tooltip */}
                         <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}}/>
                         <Bar dataKey="completed" stackId="a" radius={[0, 0, 0, 0]} barSize={40}>
                            {analytics.barData.map((entry, index) => <Cell key={`c-${index}`} fill={entry.color} />)}
@@ -1563,7 +1731,7 @@ export default function App() {
              </div>
 
              {/* Top Activities */}
-             <div className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col min-h-[180px]">
+             <div className="flex-1 bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 flex flex-col min-h-[220px]">
                 <div className="flex items-center mb-4">
                    <h3 className="text-xs font-bold uppercase tracking-wider dark:text-white flex items-center gap-2"><TrendingUp size={14} className="text-zinc-400"/>Top Activities</h3>
                 </div>
@@ -1571,7 +1739,6 @@ export default function App() {
                    {analytics.topActivities.length > 0 ? analytics.topActivities.map((item, idx) => (
                      <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                         <div className="flex items-center gap-3">
-                           {/* MODIFIED: Use Category Color for Rank Badge */}
                            <div 
                               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm"
                               style={{ 
@@ -1600,7 +1767,7 @@ export default function App() {
           </div>
 
           {/* Row 3: Compact Week View */}
-          <div className="flex-[1.5] min-h-[250px] flex flex-col bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+          <div className="flex-[1.5] min-h-[250px] flex flex-col bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden shrink-0">
              <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900">
                 <h3 className="text-sm font-black uppercase tracking-wider text-zinc-800 dark:text-white flex items-center gap-2"><Layout size={14} className="text-zinc-400"/>Week at a Glance</h3>
              </div>
@@ -1644,7 +1811,7 @@ export default function App() {
                                 </div>
                             </div>
                             
-                            {/* Daily Stats Summary Row - Moved to Top Right */}
+                            {/* Daily Stats Summary Row */}
                             <div className="flex flex-col items-end gap-1">
                                 {dayLog ? (
                                     <div className={`${getScoreColor(dayLog.score)} flex items-center`} title={`${dayLog.score}/5 Mood`}>
@@ -1689,11 +1856,6 @@ export default function App() {
         </div>
       </div>
 
-      <InsightModal isOpen={isInsightModalOpen} onClose={() => setIsInsightModalOpen(false)} insight={aiInsight} isGenerating={isGeneratingAi} onGenerate={generateInsight} themeStyles={themeStyles} />
-      <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} log={todaysLog} onSave={handleSaveReflection} themeStyles={themeStyles} />
-      <CategoryManager isOpen={isCatManagerOpen} onClose={() => setIsCatManagerOpen(false)} categories={categories} setCategories={setCategories} themeStyles={themeStyles} />
-      <TemplateManager isOpen={isTemplatesOpen} onClose={() => setIsTemplatesOpen(false)} templates={templates} onSaveCurrent={handleSaveTemplate} onApplyTemplate={handleApplyTemplate} onDeleteTemplate={(id) => setTemplates(templates.filter(t => t.id !== id))} themeStyles={themeStyles} />
-      
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-sm p-6 shadow-2xl border dark:border-zinc-700">
@@ -1707,16 +1869,19 @@ export default function App() {
                  title: formData.get('title'),
                  description: formData.get('description'),
                  impact: Number(formData.get('impact')),
-                 startTime: formData.get('startTime'),
-                 endTime: formData.get('endTime'),
+                 startTime: formStartTime,
+                 endTime: formEndTime,
                  categoryId: formData.get('categoryId')
                });
             }}>
               <input name="title" required defaultValue={editingTask?.title} placeholder="Task Title" className="w-full mb-3 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
+              
+              {/* Custom Time Picker */}
               <div className="flex gap-3 mb-3">
-                <input name="startTime" type="time" required defaultValue={editingTask?.startTime || '09:00'} className="flex-1 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none dark:text-white" />
-                <input name="endTime" type="time" required defaultValue={editingTask?.endTime || '10:00'} className="flex-1 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none dark:text-white" />
+                 <CustomTimePicker value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
+                 <CustomTimePicker value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
               </div>
+
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {categories.map(cat => (
                    <label key={cat.id} className="cursor-pointer"><input type="radio" name="categoryId" value={cat.id} defaultChecked={editingTask?.categoryId === cat.id || (!editingTask && cat.id === categories[0].id)} className="peer hidden" /><div className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 peer-checked:ring-2 peer-checked:ring-offset-1 flex items-center justify-center text-xs font-bold px-1 transition-all" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>{cat.name}</div></label>
