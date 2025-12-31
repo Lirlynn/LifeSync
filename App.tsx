@@ -93,6 +93,7 @@ import {
   differenceInDays, 
   isSameMonth, 
   isSameYear,
+  addMinutes,
   eachDayOfInterval as eachDayOfIntervalFn
 } from 'date-fns';
 import { 
@@ -122,7 +123,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "2.0.0"; // V2 Update
+const APP_VERSION = "3.2.0"; // Feedback Update
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -144,26 +145,12 @@ const COLOR_THEMES = {
     softBg: 'bg-orange-50', hoverBorder: 'hover:border-orange-300',
     activeBg: 'bg-orange-600', activeText: 'text-orange-100'
   },
-  amber: {
-    bg: 'bg-amber-600', hover: 'hover:bg-amber-700', text: 'text-amber-600',
-    border: 'border-amber-500', ring: 'focus:ring-amber-500',
-    bgLight: 'bg-amber-100', textLight: 'text-amber-200',
-    softBg: 'bg-amber-50', hoverBorder: 'hover:border-amber-300',
-    activeBg: 'bg-amber-600', activeText: 'text-amber-100'
-  },
   yellow: {
     bg: 'bg-yellow-500', hover: 'hover:bg-yellow-600', text: 'text-yellow-600',
     border: 'border-yellow-500', ring: 'focus:ring-yellow-500',
     bgLight: 'bg-yellow-100', textLight: 'text-yellow-200',
     softBg: 'bg-yellow-50', hoverBorder: 'hover:border-yellow-300',
     activeBg: 'bg-yellow-500', activeText: 'text-yellow-100'
-  },
-  lime: {
-    bg: 'bg-lime-600', hover: 'hover:bg-lime-700', text: 'text-lime-600',
-    border: 'border-lime-500', ring: 'focus:ring-lime-500',
-    bgLight: 'bg-lime-100', textLight: 'text-lime-200',
-    softBg: 'bg-lime-50', hoverBorder: 'hover:border-lime-300',
-    activeBg: 'bg-lime-600', activeText: 'text-lime-100'
   },
   emerald: {
     bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', text: 'text-emerald-600',
@@ -172,26 +159,12 @@ const COLOR_THEMES = {
     softBg: 'bg-emerald-50', hoverBorder: 'hover:border-emerald-300',
     activeBg: 'bg-emerald-600', activeText: 'text-emerald-100'
   },
-  teal: {
-    bg: 'bg-teal-600', hover: 'hover:bg-teal-700', text: 'text-teal-600',
-    border: 'border-teal-500', ring: 'focus:ring-teal-500',
-    bgLight: 'bg-teal-100', textLight: 'text-teal-200',
-    softBg: 'bg-teal-50', hoverBorder: 'hover:border-teal-300',
-    activeBg: 'bg-teal-600', activeText: 'text-teal-100'
-  },
   cyan: {
     bg: 'bg-cyan-600', hover: 'hover:bg-cyan-700', text: 'text-cyan-600',
     border: 'border-cyan-500', ring: 'focus:ring-cyan-500',
     bgLight: 'bg-cyan-100', textLight: 'text-cyan-200',
     softBg: 'bg-cyan-50', hoverBorder: 'hover:border-cyan-300',
     activeBg: 'bg-cyan-600', activeText: 'text-cyan-100'
-  },
-  sky: {
-    bg: 'bg-sky-600', hover: 'hover:bg-sky-700', text: 'text-sky-600',
-    border: 'border-sky-500', ring: 'focus:ring-sky-500',
-    bgLight: 'bg-sky-100', textLight: 'text-sky-200',
-    softBg: 'bg-sky-50', hoverBorder: 'hover:border-sky-300',
-    activeBg: 'bg-sky-600', activeText: 'text-sky-100'
   },
   blue: {
     bg: 'bg-blue-600', hover: 'hover:bg-blue-700', text: 'text-blue-600',
@@ -200,13 +173,6 @@ const COLOR_THEMES = {
     softBg: 'bg-blue-50', hoverBorder: 'hover:border-blue-300',
     activeBg: 'bg-blue-600', activeText: 'text-blue-100'
   },
-  indigo: {
-    bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', text: 'text-indigo-600',
-    border: 'border-indigo-500', ring: 'focus:ring-indigo-500',
-    bgLight: 'bg-indigo-100', textLight: 'text-indigo-200',
-    softBg: 'bg-indigo-50', hoverBorder: 'hover:border-indigo-300',
-    activeBg: 'bg-indigo-600', activeText: 'text-indigo-100'
-  },
   violet: {
     bg: 'bg-violet-600', hover: 'hover:bg-violet-700', text: 'text-violet-600',
     border: 'border-violet-500', ring: 'focus:ring-violet-500',
@@ -214,37 +180,24 @@ const COLOR_THEMES = {
     softBg: 'bg-violet-50', hoverBorder: 'hover:border-violet-300',
     activeBg: 'bg-violet-600', activeText: 'text-violet-100'
   },
-  fuchsia: {
-    bg: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', text: 'text-fuchsia-600',
-    border: 'border-fuchsia-500', ring: 'focus:ring-fuchsia-500',
-    bgLight: 'bg-fuchsia-100', textLight: 'text-fuchsia-200',
-    softBg: 'bg-fuchsia-50', hoverBorder: 'hover:border-fuchsia-300',
-    activeBg: 'bg-fuchsia-600', activeText: 'text-fuchsia-100'
-  },
-  pink: {
-    bg: 'bg-pink-600', hover: 'hover:bg-pink-700', text: 'text-pink-600',
-    border: 'border-pink-500', ring: 'focus:ring-pink-500',
-    bgLight: 'bg-pink-100', textLight: 'text-pink-200',
-    softBg: 'bg-pink-50', hoverBorder: 'hover:border-pink-300',
-    activeBg: 'bg-pink-600', activeText: 'text-pink-100'
-  },
-  rose: {
-    bg: 'bg-rose-600', hover: 'hover:bg-rose-700', text: 'text-rose-600',
-    border: 'border-rose-500', ring: 'focus:ring-rose-500',
-    bgLight: 'bg-rose-100', textLight: 'text-rose-200',
-    softBg: 'bg-rose-50', hoverBorder: 'hover:border-rose-300',
-    activeBg: 'bg-rose-600', activeText: 'text-rose-100'
-  },
-  slate: {
-    bg: 'bg-slate-600', hover: 'hover:bg-slate-700', text: 'text-slate-600',
-    border: 'border-slate-500', ring: 'focus:ring-slate-500',
-    bgLight: 'bg-slate-100', textLight: 'text-slate-200',
-    softBg: 'bg-slate-50', hoverBorder: 'hover:border-slate-300',
-    activeBg: 'bg-slate-600', activeText: 'text-slate-100'
-  }
 };
 
 type ColorTheme = keyof typeof COLOR_THEMES;
+
+const CURATED_THEMES = ['red', 'orange', 'yellow', 'emerald', 'cyan', 'blue', 'violet'] as const;
+
+// Color Palette for Categories
+const CATEGORY_PALETTE = [
+  '#71717a', // Zinc/Grey
+  '#ef4444', // Red
+  '#f97316', // Orange
+  '#eab308', // Yellow
+  '#10b981', // Emerald
+  '#06b6d4', // Cyan
+  '#3b82f6', // Blue
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+];
 
 const ICON_MAP: Record<string, any> = {
   dumbbell: Dumbbell,
@@ -816,7 +769,7 @@ const AuthModal = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 overflow-y-auto bg-gradient-to-br from-zinc-900 via-black to-black">
       <div className="bg-zinc-900 rounded-2xl w-full max-w-sm p-8 border border-zinc-800/50 shadow-2xl relative overflow-hidden">
         <div className="relative z-10 text-center flex flex-col items-center">
             
@@ -893,6 +846,10 @@ const AuthModal = ({
                   </div>
                   
                   {error && <p className="text-red-500 text-xs text-left">{error}</p>}
+                  
+                  <div className="flex justify-end">
+                    <button type="button" className="text-zinc-500 hover:text-zinc-300 text-xs transition-colors">Forgot Password?</button>
+                  </div>
 
                   <button 
                     onClick={handleEmailAuth} 
@@ -909,7 +866,7 @@ const AuthModal = ({
                </div>
 
                {/* Guest Button */}
-               <button onClick={handleGuest} className="w-full bg-zinc-800/30 hover:bg-zinc-800 border border-zinc-800 text-zinc-500 hover:text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors mt-2">
+               <button onClick={handleGuest} className="w-full bg-transparent hover:bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors mt-2">
                  Continue as Guest
                </button>
             </div>
@@ -994,8 +951,8 @@ const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, on
        <div className="p-2">
          <div className="px-3 py-2">
             <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Theme Color</div>
-            <div className="grid grid-cols-8 gap-2">
-              {(Object.keys(COLOR_THEMES) as ColorTheme[]).map((c) => (
+            <div className="grid grid-cols-7 gap-2">
+              {CURATED_THEMES.map((c) => (
                 <button 
                   key={c}
                   onClick={() => setAccentColor(c)}
@@ -1011,6 +968,13 @@ const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, on
          <button onClick={onTemplates} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"><Layout size={18} /><span>Weekly Templates</span></button>
          <label className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"><Upload size={18} /><span>Import Data</span><input type="file" accept=".json" onChange={onImport} className="hidden" /></label>
          <button onClick={onExport} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"><Download size={18} /><span>Export Data</span></button>
+         <button onClick={onLoadSample} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
+           <Database size={18} /><span>Load Sample Data</span>
+         </button>
+         <div className="border-t border-zinc-100 dark:border-zinc-800 my-2"></div>
+         <div className="px-3 pb-1">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Danger Zone</span>
+         </div>
          <button 
            type="button"
            onClick={(e) => { 
@@ -1021,12 +985,9 @@ const SettingsMenu = ({ isOpen, onClose, theme, setTheme, onImport, onExport, on
                 onClose(); 
              } 
            }} 
-           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors"
+           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-900/10 text-red-600 transition-colors"
          >
             <Trash2 size={18} /><span>Reset Data</span>
-         </button>
-         <button onClick={onLoadSample} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
-           <Database size={18} /><span>Load Sample Data</span>
          </button>
        </div>
        <div className="border-t border-zinc-100 dark:border-zinc-800 p-2">
@@ -1075,11 +1036,13 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
   const [name, setName] = useState('');
   const [isFocus, setIsFocus] = useState(true);
   const [selectedIcon, setSelectedIcon] = useState('tag');
+  const [selectedColor, setSelectedColor] = useState(CATEGORY_PALETTE[0]);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editIsFocus, setEditIsFocus] = useState(false);
   const [editIcon, setEditIcon] = useState('tag');
+  const [editColor, setEditColor] = useState(CATEGORY_PALETTE[0]);
 
   useEffect(() => {
     setEditingId(null);
@@ -1090,12 +1053,13 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
     setEditName(cat.name);
     setEditIsFocus(cat.isFocus || false);
     setEditIcon(cat.icon || 'tag');
+    setEditColor(cat.color);
   };
 
   const handleSaveEdit = () => {
     if (!editingId || !editName.trim()) return;
     setCategories(categories.map((c: CategoryConfig) => 
-      c.id === editingId ? { ...c, name: editName, isFocus: editIsFocus, icon: editIcon } : c
+      c.id === editingId ? { ...c, name: editName, isFocus: editIsFocus, icon: editIcon, color: editColor } : c
     ));
     setEditingId(null);
   };
@@ -1112,7 +1076,7 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
         <div className="flex flex-col gap-3 mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
            <div className="flex gap-2">
              <input value={name} onChange={e=>setName(e.target.value)} placeholder="New Category Name" className="flex-1 bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 outline-none dark:text-white text-sm"/>
-             <button onClick={()=>{if(name)setCategories([...categories,{id:crypto.randomUUID(),name,color:'#6366f1', isFocus, icon: selectedIcon}]);setName('')}} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-4 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none`}><Plus size={20}/></button>
+             <button onClick={()=>{if(name)setCategories([...categories,{id:crypto.randomUUID(),name,color: selectedColor, isFocus, icon: selectedIcon}]);setName('')}} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-4 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none`}><Plus size={20}/></button>
            </div>
            
            <div className="flex items-center justify-between">
@@ -1120,18 +1084,23 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                 <input type="checkbox" checked={isFocus} onChange={e => setIsFocus(e.target.checked)} className={`accent-${themeStyles.text.split('-')[1]}-600 rounded`} />
                 <span>Focus / High Impact?</span>
               </label>
-              
-              <div className="flex items-center gap-2">
-                 <span className="text-xs text-zinc-500">Icon:</span>
-                 <div className="flex gap-1">
-                   {/* Simplified icon selection for creation */}
-                   <div className="bg-white dark:bg-zinc-900 p-1 rounded border dark:border-zinc-700">
-                      {getCategoryIcon(selectedIcon, 16)}
-                   </div>
-                 </div>
-              </div>
            </div>
            
+           {/* Color Picker Row */}
+           <div className="flex items-center gap-2 mt-1">
+             <span className="text-xs text-zinc-500">Color:</span>
+             <div className="flex gap-2">
+                {CATEGORY_PALETTE.map(color => (
+                   <button 
+                     key={color} 
+                     onClick={() => setSelectedColor(color)}
+                     className={`w-5 h-5 rounded-full ${selectedColor === color ? 'ring-2 ring-white dark:ring-zinc-900 ring-offset-1 ring-offset-zinc-400' : ''}`}
+                     style={{backgroundColor: color}}
+                   />
+                ))}
+             </div>
+           </div>
+
            {/* Icon Grid for Creation */}
            <div className="grid grid-cols-8 gap-2 mt-1">
               {iconList.map(iconKey => (
@@ -1170,6 +1139,21 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                             <span>Focus?</span>
                           </label>
                       </div>
+
+                       {/* Color Edit Row */}
+                       <div className="flex items-center gap-2 mt-1">
+                         <span className="text-xs text-zinc-500">Color:</span>
+                         <div className="flex gap-2">
+                            {CATEGORY_PALETTE.map(color => (
+                               <button 
+                                 key={color} 
+                                 onClick={() => setEditColor(color)}
+                                 className={`w-4 h-4 rounded-full ${editColor === color ? 'ring-2 ring-zinc-500 ring-offset-1' : ''}`}
+                                 style={{backgroundColor: color}}
+                               />
+                            ))}
+                         </div>
+                       </div>
 
                       {/* Icon Edit Grid */}
                       <div className="grid grid-cols-8 gap-2 mt-1">
@@ -1620,12 +1604,21 @@ export default function App() {
      return <Frown size={12} className="text-red-500" />;
   };
 
+  // Helper to add duration to current start time
+  const handleQuickDuration = (minutes: number) => {
+    const [h, m] = formStartTime.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m);
+    const newEnd = addMinutes(d, minutes);
+    setFormEndTime(format(newEnd, 'HH:mm'));
+  };
+
   if (!user) return <AuthModal isOpen={true} onLogin={setUser} />;
 
   return (
-    <div className={`flex flex-col lg:flex-row h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 font-sans transition-colors duration-300`}>
+    <div className={`flex flex-col lg:flex-row h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 font-sans transition-colors duration-300`}>
       {/* LEFT COLUMN - TIMELINE */}
-      <div className="w-full lg:w-5/12 xl:w-5/12 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-full relative z-10 shadow-xl overflow-hidden min-h-0">
+      <div className="w-full lg:w-5/12 h-full flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 relative z-20 shadow-xl lg:shadow-none min-h-0">
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-20 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
              <div className="bg-zinc-100 dark:bg-zinc-800 p-2.5 rounded-xl"><CalendarIcon className={themeStyles.text} size={20} /></div>
@@ -1667,8 +1660,14 @@ export default function App() {
               </div>
             ))}
             {isSameDay(currentDate, new Date()) && (
-               <div className="absolute w-full border-t-2 border-red-500 z-30 flex items-center pointer-events-none" style={{ top: getPosition(format(new Date(), 'HH:mm')) }}>
-                 <div className="w-16 bg-red-500 text-white text-[10px] px-1 rounded-r font-bold -mt-3.5 ml-0 flex justify-end">{format(new Date(), 'HH:mm')}</div>
+               <div className="absolute w-full z-30 pointer-events-none" style={{ top: getPosition(format(new Date(), 'HH:mm')) }}>
+                 <div className="w-full border-t-2 border-red-500 absolute top-0"></div>
+                 <div className="absolute left-1 top-0 -translate-y-1/2 flex items-center z-40">
+                    <div className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-md font-bold shadow-sm flex items-center">
+                       {format(new Date(), 'HH:mm')}
+                    </div>
+                    <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[5px] border-l-red-500 -ml-px"></div>
+                 </div>
                </div>
             )}
             {todaysTasks.map((task, idx) => {
@@ -1724,7 +1723,7 @@ export default function App() {
       </div>
 
       {/* RIGHT COLUMN - DASHBOARD - FIXED FIT TO SCREEN */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 relative">
+      <div className="flex-1 h-full flex flex-col relative min-w-0 overflow-hidden bg-zinc-50 dark:bg-zinc-950">
          {/* Top Navigation Bar */}
          <div className="px-6 py-5 flex justify-between items-center bg-transparent z-20 shrink-0">
             <div>
@@ -2001,9 +2000,33 @@ export default function App() {
               <input name="title" required defaultValue={editingTask?.title} placeholder="Task Title" className="w-full mb-3 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
               
               {/* Custom Time Picker */}
-              <div className="flex gap-3 mb-3">
+              <div className="flex gap-3 mb-2">
                  <CustomTimePicker value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
                  <CustomTimePicker value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
+              </div>
+
+              {/* Quick Duration Presets */}
+              <div className="flex gap-2 mb-4">
+                {[30, 60, 90, 120].map(mins => {
+                  // Calculate active state for button
+                  const [sh, sm] = formStartTime.split(':').map(Number);
+                  const [eh, em] = formEndTime.split(':').map(Number);
+                  const startMins = sh * 60 + sm;
+                  const endMins = eh * 60 + em;
+                  const diff = endMins - startMins;
+                  const isActive = Math.abs(diff - mins) < 5; // Allow small margin
+
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => handleQuickDuration(mins)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors border ${isActive ? `${themeStyles.bg} text-white border-transparent` : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                    >
+                      +{mins < 60 ? `${mins}m` : `${mins/60}h`}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-4">
@@ -2021,7 +2044,7 @@ export default function App() {
                     max="10" 
                     value={taskImpact} 
                     onChange={(e) => setTaskImpact(parseInt(e.target.value))}
-                    className={`w-full accent-${themeStyles.text.split('-')[1]}-600`} 
+                    className={`w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer dark:bg-zinc-700 accent-${themeStyles.text.split('-')[1]}-600`} 
                   />
                   <span className="text-sm font-bold w-6 text-center text-zinc-700 dark:text-zinc-300">{taskImpact}</span>
                 </div>
