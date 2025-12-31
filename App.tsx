@@ -78,7 +78,9 @@ import {
   Bus,
   Train,
   Bike,
-  ListFilter
+  ListFilter,
+  ArrowLeft,
+  Search
 } from 'lucide-react';
 import { 
   format, 
@@ -123,7 +125,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "5.0.0"; // Smart Time & Default Tags
+const APP_VERSION = "5.1.0"; // Timeline Layout & UX Polish
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -457,10 +459,11 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
 
 // --- Sub-Components ---
 
-// Smart Time Input Component (v5.0)
+// Smart Time Input Component (v5.1 - Added Auto Scroll)
 const SmartTimeInput = ({ value, onChange, label, themeStyles }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {
@@ -475,6 +478,12 @@ const SmartTimeInput = ({ value, onChange, label, themeStyles }: any) => {
     };
     if (isOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
   }, [isOpen]);
 
   const handleBlur = () => {
@@ -537,6 +546,7 @@ const SmartTimeInput = ({ value, onChange, label, themeStyles }: any) => {
              <button
                key={t}
                type="button"
+               ref={t === value ? activeItemRef : null}
                onClick={() => { onChange(t); setIsOpen(false); }}
                className={`w-full text-left px-4 py-2 text-sm font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${t === value ? `${themeStyles.text} font-bold bg-zinc-50 dark:bg-zinc-800/50` : 'text-zinc-600 dark:text-zinc-300'}`}
              >
@@ -1057,242 +1067,283 @@ const ReflectionModal = ({ isOpen, onClose, log, onSave, themeStyles }: any) => 
   );
 };
 
+// Redesigned Category Manager with Split View (List / Editor)
 const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyles }: any) => {
-  const [name, setName] = useState('');
-  const [isFocus, setIsFocus] = useState(true);
-  const [selectedIcon, setSelectedIcon] = useState('tag');
-  const [selectedColor, setSelectedColor] = useState(PALETTE_CONFIG[0].color);
-  const [defaultTags, setDefaultTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [mode, setMode] = useState<'LIST' | 'EDITOR'>('LIST');
+  const [searchQuery, setSearchQuery] = useState('');
   
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editIsFocus, setEditIsFocus] = useState(false);
-  const [editIcon, setEditIcon] = useState('tag');
-  const [editColor, setEditColor] = useState(PALETTE_CONFIG[0].color);
-  const [editDefaultTags, setEditDefaultTags] = useState<string[]>([]);
-  const [editTagInput, setEditTagInput] = useState('');
+  // Unified Form State
+  const initialFormState = {
+    id: '',
+    name: '',
+    color: PALETTE_CONFIG[0].color,
+    icon: 'tag',
+    isFocus: false,
+    defaultTags: [] as string[]
+  };
+  const [formData, setFormData] = useState<Partial<CategoryConfig>>(initialFormState);
+  const [tagInput, setTagInput] = useState('');
 
+  // Reset state when modal opens
   useEffect(() => {
-    setEditingId(null);
-    setDefaultTags([]);
-    setTagInput('');
+    if (isOpen) {
+      setMode('LIST');
+      setSearchQuery('');
+    }
   }, [isOpen]);
 
-  const handleStartEdit = (cat: CategoryConfig) => {
-    setEditingId(cat.id);
-    setEditName(cat.name);
-    setEditIsFocus(cat.isFocus || false);
-    setEditIcon(cat.icon || 'tag');
-    setEditColor(cat.color);
-    setEditDefaultTags(cat.defaultTags || []);
+  const handleCreateNew = () => {
+    setFormData(initialFormState);
+    setMode('EDITOR');
   };
 
-  const handleSaveEdit = () => {
-    if (!editingId || !editName.trim()) return;
-    setCategories(categories.map((c: CategoryConfig) => 
-      c.id === editingId ? { 
-        ...c, 
-        name: editName, 
-        isFocus: editIsFocus, 
-        icon: editIcon, 
-        color: editColor,
-        defaultTags: editDefaultTags
-      } : c
-    ));
-    setEditingId(null);
+  const handleEdit = (category: CategoryConfig) => {
+    setFormData(category);
+    setMode('EDITOR');
   };
 
-  const handleAddDefaultTag = () => {
-    if (tagInput.trim() && !defaultTags.includes(tagInput.trim())) {
-      setDefaultTags([...defaultTags, tagInput.trim()]);
+  const handleSave = () => {
+    if (!formData.name?.trim()) return;
+
+    if (formData.id) {
+      // Update Existing
+      setCategories(categories.map((c: CategoryConfig) => c.id === formData.id ? formData : c));
+    } else {
+      // Create New
+      setCategories([...categories, { ...formData, id: crypto.randomUUID() }]);
+    }
+    setMode('LIST');
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm("Delete this category? Associated tasks will lose their color context.")) {
+      setCategories(categories.filter((c: CategoryConfig) => c.id !== id));
+    }
+  };
+
+  const handleAddTag = () => {
+    if (tagInput.trim() && !formData.defaultTags?.includes(tagInput.trim())) {
+      setFormData({
+        ...formData,
+        defaultTags: [...(formData.defaultTags || []), tagInput.trim()]
+      });
       setTagInput('');
     }
   };
 
-  const handleAddEditDefaultTag = () => {
-    if (editTagInput.trim() && !editDefaultTags.includes(editTagInput.trim())) {
-      setEditDefaultTags([...editDefaultTags, editTagInput.trim()]);
-      setEditTagInput('');
-    }
+  const handleRemoveTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      defaultTags: formData.defaultTags?.filter(t => t !== tagToRemove)
+    });
   };
-  
-  const iconList = Object.keys(ICON_MAP);
-  
+
+  const filteredCategories = categories.filter((c: CategoryConfig) => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-lg p-6 border dark:border-zinc-700 shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4"><h3 className="font-bold dark:text-white text-lg">Categories</h3><button onClick={onClose}><X size={20}/></button></div>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-lg h-[600px] flex flex-col border dark:border-zinc-700 shadow-2xl overflow-hidden relative transition-all duration-300">
         
-        {/* Add New Category */}
-        <div className="flex flex-col gap-3 mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
-           <div className="flex gap-2">
-             <input value={name} onChange={e=>setName(e.target.value)} placeholder="New Category Name" className="flex-1 bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 outline-none dark:text-white text-sm"/>
-             <button onClick={()=>{if(name)setCategories([...categories,{id:crypto.randomUUID(),name,color: selectedColor, isFocus, icon: selectedIcon, defaultTags}]);setName('');setDefaultTags([]);}} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-4 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none`}><Plus size={20}/></button>
-           </div>
-           
-           <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-[10px] uppercase font-bold text-zinc-500 select-none">
-                <input type="checkbox" checked={isFocus} onChange={e => setIsFocus(e.target.checked)} className={`accent-${themeStyles.text.split('-')[1]}-600 rounded`} />
-                <span>Focus / High Impact?</span>
-              </label>
-           </div>
-           
-           {/* Color Picker Grid */}
-           <div className="flex flex-col gap-1 mt-1">
-             <span className="text-[10px] font-bold text-zinc-500 uppercase">Color</span>
-             <div className="grid grid-cols-7 gap-3">
-                {PALETTE_CONFIG.map(({color, isLight}) => (
-                   <button 
-                     key={color} 
-                     onClick={() => setSelectedColor(color)}
-                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-sm ${selectedColor === color ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-zinc-500' : ''}`}
-                     style={{backgroundColor: color}}
-                   >
-                     {selectedColor === color && <Check size={16} className={isLight ? 'text-black' : 'text-white'} />}
-                   </button>
-                ))}
-             </div>
-           </div>
+        {/* --- LIST MODE --- */}
+        {mode === 'LIST' && (
+          <>
+            {/* Header */}
+            <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900 z-10">
+              <h3 className="font-bold dark:text-white text-lg">Categories</h3>
+              <div className="flex gap-2">
+                 <button onClick={handleCreateNew} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-95`}>
+                    <Plus size={16}/> New Category
+                 </button>
+                 <button onClick={onClose} className="p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"><X size={20}/></button>
+              </div>
+            </div>
 
-           {/* Icon Grid */}
-           <div className="flex flex-col gap-1 mt-1">
-             <span className="text-[10px] font-bold text-zinc-500 uppercase">Icon</span>
-             <div className="grid grid-cols-7 gap-3">
-                {iconList.map(iconKey => (
-                   <button 
-                     key={iconKey} 
-                     onClick={() => setSelectedIcon(iconKey)}
-                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${selectedIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
-                   >
-                      {getCategoryIcon(iconKey, 14)}
-                   </button>
-                ))}
-             </div>
-           </div>
+            {/* Search */}
+            <div className="px-5 py-3 border-b border-zinc-50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50">
+               <div className="relative">
+                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                 <input 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search categories..."
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl py-2 pl-9 pr-4 text-sm outline-none focus:border-indigo-500 dark:text-white"
+                 />
+               </div>
+            </div>
 
-           {/* Default Tags */}
-           <div className="flex flex-col gap-1 mt-1">
-             <span className="text-[10px] font-bold text-zinc-500 uppercase">Default Tags</span>
-             <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 flex-wrap">
-                {defaultTags.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
-                    {tag}
-                    <button onClick={() => setDefaultTags(defaultTags.filter(t => t !== tag))} className="hover:text-red-500"><X size={10} /></button>
-                  </span>
-                ))}
-                <input 
-                  value={tagInput}
-                  onChange={e => setTagInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddDefaultTag(); }}
-                  placeholder="Add tag..."
-                  className="bg-transparent text-xs outline-none flex-1 min-w-[60px] dark:text-white"
-                />
-                <button onClick={handleAddDefaultTag} className="text-zinc-400 hover:text-zinc-600"><Plus size={14} /></button>
-             </div>
-           </div>
-        </div>
-
-        {/* List */}
-        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-           {categories.map((c:any)=>(
-             <div key={c.id} className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 transition-colors">
-                {editingId === c.id ? (
-                   <div className="flex-1 flex flex-col gap-3">
-                      <div className="flex gap-2">
-                          <input 
-                            value={editName} 
-                            onChange={e => setEditName(e.target.value)} 
-                            className="flex-1 bg-white dark:bg-zinc-900 p-1.5 rounded border border-zinc-200 dark:border-zinc-600 text-sm outline-none dark:text-white"
-                          />
-                          <div className="flex gap-1">
-                            <button onClick={handleSaveEdit} className="p-1.5 bg-green-500/10 text-green-600 rounded hover:bg-green-500/20"><Check size={16}/></button>
-                            <button onClick={() => setEditingId(null)} className="p-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-500 rounded hover:bg-zinc-300"><X size={16}/></button>
-                          </div>
-                      </div>
-                      
-                      {/* Edit Color Grid */}
-                      <div className="flex flex-col gap-1">
-                         <span className="text-[10px] font-bold text-zinc-500 uppercase">Color</span>
-                         <div className="grid grid-cols-7 gap-2">
-                            {PALETTE_CONFIG.map(({color, isLight}) => (
-                               <button 
-                                 key={color} 
-                                 onClick={() => setEditColor(color)}
-                                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${editColor === color ? 'ring-2 ring-zinc-500 ring-offset-1' : ''}`}
-                                 style={{backgroundColor: color}}
-                               >
-                                 {editColor === color && <Check size={10} className={isLight ? 'text-black' : 'text-white'} />}
-                               </button>
-                            ))}
+            {/* List Body */}
+            <div className="flex-1 overflow-y-auto p-2 bg-zinc-50 dark:bg-zinc-950/30 custom-scrollbar">
+               {filteredCategories.length === 0 ? (
+                 <div className="h-full flex flex-col items-center justify-center text-zinc-400 gap-3">
+                    <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                       <Tag size={32} strokeWidth={1.5} />
+                    </div>
+                    <p className="text-sm">No categories found.</p>
+                 </div>
+               ) : (
+                 <div className="space-y-2">
+                   {filteredCategories.map((cat: CategoryConfig) => (
+                      <div key={cat.id} className="group bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl flex items-center justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors shadow-sm">
+                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm shrink-0" style={{backgroundColor: cat.color}}>
+                               {getCategoryIcon(cat.icon, 18)}
+                            </div>
+                            <div>
+                               <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm dark:text-zinc-100">{cat.name}</span>
+                                  {cat.isFocus && <Zap size={12} className="text-amber-500 fill-amber-500" />}
+                               </div>
+                               <div className="flex gap-1 mt-1 flex-wrap">
+                                  {cat.defaultTags && cat.defaultTags.length > 0 ? cat.defaultTags.slice(0, 3).map(t => (
+                                     <span key={t} className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-md font-medium">{t}</span>
+                                  )) : <span className="text-[10px] text-zinc-300 italic">No tags</span>}
+                               </div>
+                            </div>
                          </div>
-                       </div>
+                         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleEdit(cat)} className="p-2 text-zinc-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"><Edit2 size={16}/></button>
+                            <button onClick={() => handleDelete(cat.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                         </div>
+                      </div>
+                   ))}
+                 </div>
+               )}
+            </div>
+          </>
+        )}
 
-                      {/* Edit Icon Grid */}
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Icon</span>
-                        <div className="grid grid-cols-7 gap-2">
-                          {iconList.map(iconKey => (
+        {/* --- EDITOR MODE --- */}
+        {mode === 'EDITOR' && (
+           <div className="flex flex-col h-full bg-white dark:bg-zinc-900 animate-in fade-in slide-in-from-right-4 duration-200">
+              {/* Header */}
+              <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900 shrink-0">
+                 <div className="flex items-center gap-3">
+                    <button onClick={() => setMode('LIST')} className="p-2 -ml-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors text-zinc-500">
+                       <ArrowLeft size={20} />
+                    </button>
+                    <h3 className="font-bold dark:text-white text-lg">{formData.id ? 'Edit Category' : 'New Category'}</h3>
+                 </div>
+                 <button onClick={onClose} className="p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"><X size={20}/></button>
+              </div>
+
+              {/* Form Body */}
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                 <div className="space-y-6">
+                    {/* Preview Badge */}
+                    <div className="flex justify-center mb-6">
+                       <div className="flex flex-col items-center gap-2">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Preview</span>
+                          <div className="pl-1 pr-4 py-1 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm" style={{backgroundColor: formData.color}}>
+                                {getCategoryIcon(formData.icon, 14)}
+                             </div>
+                             <span className="text-sm font-bold dark:text-white">{formData.name || 'Category Name'}</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* Name Input */}
+                    <div>
+                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Name</label>
+                       <input 
+                          autoFocus
+                          value={formData.name}
+                          onChange={e => setFormData({...formData, name: e.target.value})}
+                          placeholder="e.g. Health & Fitness"
+                          className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition-all font-medium"
+                       />
+                    </div>
+
+                    {/* Focus Toggle */}
+                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                       <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${formData.isFocus ? 'bg-amber-100 text-amber-600' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400'}`}>
+                             <Zap size={18} className={formData.isFocus ? 'fill-amber-600' : ''} />
+                          </div>
+                          <div>
+                             <p className="font-bold text-sm dark:text-zinc-200">Deep Work / Focus</p>
+                             <p className="text-xs text-zinc-500">Counts toward productivity stats</p>
+                          </div>
+                       </div>
+                       <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={formData.isFocus} onChange={e => setFormData({...formData, isFocus: e.target.checked})} className="sr-only peer" />
+                          <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                       </label>
+                    </div>
+
+                    {/* Color Picker */}
+                    <div>
+                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Color</label>
+                       <div className="grid grid-cols-7 gap-3">
+                          {PALETTE_CONFIG.map(({color, isLight}) => (
                              <button 
-                               key={iconKey} 
-                               onClick={() => setEditIcon(iconKey)}
-                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${editIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
+                               key={color} 
+                               onClick={() => setFormData({...formData, color})}
+                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-sm ${formData.color === color ? 'ring-2 ring-offset-2 ring-zinc-900 dark:ring-zinc-100 scale-110' : ''}`}
+                               style={{backgroundColor: color}}
                              >
-                                {getCategoryIcon(iconKey, 14)}
+                               {formData.color === color && <Check size={14} className={isLight ? 'text-black' : 'text-white'} />}
                              </button>
                           ))}
-                        </div>
-                      </div>
+                       </div>
+                    </div>
 
-                      {/* Edit Default Tags */}
-                      <div className="flex flex-col gap-1">
-                         <span className="text-[10px] font-bold text-zinc-500 uppercase">Default Tags</span>
-                         <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 flex-wrap">
-                            {editDefaultTags.map(tag => (
-                              <span key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
-                                {tag}
-                                <button onClick={() => setEditDefaultTags(editDefaultTags.filter(t => t !== tag))} className="hover:text-red-500"><X size={10} /></button>
-                              </span>
-                            ))}
-                            <input 
-                              value={editTagInput}
-                              onChange={e => setEditTagInput(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') handleAddEditDefaultTag(); }}
-                              placeholder="Add tag..."
-                              className="bg-transparent text-xs outline-none flex-1 min-w-[60px] dark:text-white"
-                            />
-                            <button onClick={handleAddEditDefaultTag} className="text-zinc-400 hover:text-zinc-600"><Plus size={14} /></button>
-                         </div>
-                       </div>
-                   </div>
-                ) : (
-                   <>
-                    <div className="flex gap-3 items-center">
-                       <div className="w-8 h-8 rounded-full shadow-sm flex items-center justify-center text-white" style={{backgroundColor:c.color}}>
-                          {getCategoryIcon(c.icon, 14)}
-                       </div>
-                       <div className="flex flex-col">
-                          <span className="font-medium text-sm dark:text-zinc-200 flex items-center gap-1.5">
-                            {c.name}
-                            {c.isFocus && <Zap size={10} className="text-amber-500 fill-amber-500" />}
-                          </span>
-                          <div className="flex gap-1 mt-0.5">
-                             {c.defaultTags?.slice(0, 3).map((t: string) => (
-                               <span key={t} className="text-[9px] bg-zinc-100 dark:bg-zinc-700/50 px-1 rounded text-zinc-500">{t}</span>
-                             ))}
-                          </div>
+                    {/* Icon Picker */}
+                    <div>
+                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Icon</label>
+                       <div className="grid grid-cols-7 gap-3">
+                          {Object.keys(ICON_MAP).map(iconKey => (
+                             <button 
+                               key={iconKey} 
+                               onClick={() => setFormData({...formData, icon: iconKey})}
+                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${formData.icon === iconKey ? `${themeStyles.bg} text-white shadow-md` : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400'}`}
+                             >
+                                {getCategoryIcon(iconKey, 16)}
+                             </button>
+                          ))}
                        </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                       <button onClick={()=>setCategories(categories.filter((cat:any)=>cat.id!==c.id))} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"><Trash2 size={14}/></button>
-                       <button onClick={() => handleStartEdit(c)} className={`p-1.5 text-zinc-400 hover:${themeStyles.text} hover:${themeStyles.bgLight} dark:hover:${themeStyles.bgLight}/10 rounded transition-colors`}><Edit2 size={14}/></button>
+
+                    {/* Default Tags */}
+                    <div>
+                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Default Tags</label>
+                       <div className="flex flex-wrap gap-2 mb-2">
+                          {formData.defaultTags?.map(tag => (
+                             <div key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">{tag}</span>
+                                <button onClick={() => handleRemoveTag(tag)} className="text-zinc-400 hover:text-red-500 transition-colors"><X size={12} /></button>
+                             </div>
+                          ))}
+                       </div>
+                       <div className="flex gap-2">
+                          <input 
+                             value={tagInput}
+                             onChange={e => setTagInput(e.target.value)}
+                             onKeyDown={e => e.key === 'Enter' && handleAddTag()}
+                             placeholder="Add a tag..."
+                             className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:text-white"
+                          />
+                          <button onClick={handleAddTag} className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-3 rounded-lg transition-colors">
+                             <Plus size={18} />
+                          </button>
+                       </div>
                     </div>
-                   </>
-                )}
-             </div>
-           ))}
-        </div>
+                 </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex gap-3 shrink-0">
+                 <button onClick={() => setMode('LIST')} className="flex-1 py-3 rounded-xl font-bold text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">Cancel</button>
+                 <button onClick={handleSave} className={`flex-[2] ${themeStyles.bg} ${themeStyles.hover} text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-[0.98]`}>
+                    Save Category
+                 </button>
+              </div>
+           </div>
+        )}
       </div>
     </div>
   );
@@ -1499,6 +1550,74 @@ export default function App() {
   }, [currentDate]);
 
   const todaysTasks = useMemo(() => tasks.filter(t => t.date === formattedDate), [tasks, formattedDate]);
+  
+  // Calculate Timeline Layout with Overlaps
+  const layoutedTasks = useMemo(() => {
+    // Sort by start time
+    const sorted = [...todaysTasks].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const processed = sorted.map(t => {
+        const [h1, m1] = t.startTime.split(':').map(Number);
+        const [h2, m2] = t.endTime.split(':').map(Number);
+        // handle next day end time
+        const start = (h1 < TIME_START_HOUR ? h1 + 24 : h1) * 60 + m1; 
+        const end = (h2 < TIME_START_HOUR ? h2 + 24 : h2) * 60 + m2;
+        return { ...t, _start: start, _end: end, _col: 0, _totalCols: 1 };
+    });
+
+    // Clustering Algorithm
+    const clusters: typeof processed[] = [];
+    let currentCluster: typeof processed = [];
+    
+    if (processed.length > 0) {
+        currentCluster.push(processed[0]);
+        let clusterEnd = processed[0]._end;
+        
+        for (let i = 1; i < processed.length; i++) {
+            if (processed[i]._start < clusterEnd) {
+                // Overlaps with the current cluster timeframe
+                currentCluster.push(processed[i]);
+                clusterEnd = Math.max(clusterEnd, processed[i]._end);
+            } else {
+                // New cluster
+                clusters.push(currentCluster);
+                currentCluster = [processed[i]];
+                clusterEnd = processed[i]._end;
+            }
+        }
+        clusters.push(currentCluster);
+    }
+
+    // Process each cluster to assign width/left
+    const finalTasks: any[] = [];
+    clusters.forEach(cluster => {
+        // Simple column packing within cluster
+        const columns: typeof processed[] = [];
+        cluster.forEach(ev => {
+            let placed = false;
+            for (let c = 0; c < columns.length; c++) {
+                const lastInCol = columns[c][columns[c].length - 1];
+                if (lastInCol._end <= ev._start) {
+                    columns[c].push(ev);
+                    ev._col = c;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                columns.push([ev]);
+                ev._col = columns.length - 1;
+            }
+        });
+        const totalCols = columns.length;
+        cluster.forEach(ev => {
+            ev._totalCols = totalCols;
+            finalTasks.push(ev);
+        });
+    });
+    
+    return finalTasks;
+  }, [todaysTasks]);
+
   const todaysLog = useMemo(() => logs.find(l => l.date === formattedDate), [logs, formattedDate]);
 
   // Unified Analytics Logic
@@ -1643,11 +1762,10 @@ export default function App() {
     setSelectedCategoryId(catId);
     
     // Only auto-populate tags if creating a new task, or if the user hasn't heavily modified tags yet (simple heuristic)
-    // For V5.0 per prompt: "Auto-Select Tags... When the user clicks a Category button". 
-    // This implies instant population.
+    // For V5.1 - Fixed UX: Only auto-select the FIRST tag, don't overwhelm the user with all tags
     const cat = categories.find(c => c.id === catId);
-    if (cat && cat.defaultTags) {
-      setTaskTags(cat.defaultTags);
+    if (cat && cat.defaultTags && cat.defaultTags.length > 0) {
+      setTaskTags([cat.defaultTags[0]]);
     } else {
       setTaskTags([]);
     }
@@ -1857,19 +1975,36 @@ export default function App() {
                  </div>
                </div>
             )}
-            {todaysTasks.map((task, idx) => {
+            {/* Render Processed Tasks with Overlap Logic */}
+            {layoutedTasks.map((task) => {
               const top = getPosition(task.startTime);
-              const height = Math.max(getPosition(task.endTime) - top, 32);
+              const bottom = getPosition(task.endTime); // Use startTime helper for consistency
+              const height = Math.max(bottom - top, 32);
               const catConfig = categories.find(c => c.id === task.categoryId) || DEFAULT_CATEGORIES[0];
-              const prevTask = idx > 0 ? todaysTasks[idx - 1] : null;
-              const isOverlapping = prevTask && getPosition(prevTask.endTime) > top;
-              const widthClass = isOverlapping ? 'left-[calc(4rem+45%)] right-2 w-[45%]' : 'left-20 right-4';
               
-              // New logic for short tasks (approx 1 hour or less)
-              const isShort = height <= 60; // 1 hour is 54px
+              const isShort = height <= 60;
+
+              // Advanced Positioning
+              const colIndex = task._col;
+              const totalCols = task._totalCols;
+              
+              // We use inline styles for dynamic layout that Tailwind can't handle with classes easily
+              const style = {
+                  top: `${top}px`,
+                  height: `${height}px`,
+                  minHeight: `${height}px`,
+                  left: `calc(5rem + ${colIndex} * ((100% - 6rem) / ${totalCols}))`,
+                  width: `calc((100% - 6rem) / ${totalCols})`,
+                  borderLeftColor: task.completed ? undefined : catConfig.color
+              };
 
               return (
-                <div key={task.id} className={`absolute ${widthClass} rounded-lg border-l-[3px] p-2 flex flex-col justify-center transition-all cursor-pointer group shadow-sm hover:shadow-2xl hover:z-50 hover:h-auto hover:min-h-fit ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} style={{ top: `${top}px`, height: `${height}px`, minHeight: `${height}px`, borderLeftColor: task.completed ? undefined : catConfig.color }} onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}>
+                <div 
+                   key={task.id} 
+                   className={`absolute rounded-lg border-l-[3px] p-2 flex flex-col justify-center transition-all cursor-pointer group shadow-sm hover:shadow-2xl hover:z-50 hover:h-auto hover:min-h-fit ${task.completed ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-300 dark:border-zinc-600 grayscale opacity-70' : 'bg-white dark:bg-zinc-800 border-transparent dark:border-transparent'}`} 
+                   style={style} 
+                   onClick={() => { setEditingTask(task); setIsTaskModalOpen(true); }}
+                >
                   <div className="flex items-start gap-3 overflow-hidden h-full p-1">
                     <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                        <div className={`w-4 h-4 rounded border cursor-pointer flex items-center justify-center transition-colors ${task.completed ? 'bg-zinc-400 border-zinc-400' : `bg-white border-zinc-300 ${themeStyles.hoverBorder}`}`} onClick={() => setTasks(ts => ts.map(t => t.id === task.id ? {...t, completed: !t.completed} : t))}>{task.completed && <Check size={10} className="text-white" />}</div>
@@ -1889,11 +2024,6 @@ export default function App() {
                                       {tag}
                                     </span>
                                   ))}
-                               </div>
-                            )}
-                            {task.description && !task.tags?.length && (
-                               <div className="flex-1 border-l border-zinc-200 dark:border-zinc-700 pl-2 min-w-0 h-full flex items-center">
-                                  <p className={`text-[10px] truncate ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>{task.description}</p>
                                </div>
                             )}
                          </div>
@@ -2207,33 +2337,35 @@ export default function App() {
               {/* 1. Title Input */}
               <input name="title" required defaultValue={editingTask?.title} placeholder="Task Title" className="w-full mb-3 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
               
-              {/* 2. Time Section */}
-              <div className="flex gap-3 mb-2">
-                 <SmartTimeInput value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
-                 <SmartTimeInput value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
-              </div>
+              {/* 2. Time Section (Grouped) */}
+              <div className="bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 mb-4">
+                <div className="flex gap-3 mb-2">
+                   <SmartTimeInput value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
+                   <SmartTimeInput value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
+                </div>
 
-              {/* Quick Duration Presets */}
-              <div className="flex gap-2 mb-4">
-                {[30, 60, 90, 120].map(mins => {
-                  const [sh, sm] = formStartTime.split(':').map(Number);
-                  const [eh, em] = formEndTime.split(':').map(Number);
-                  const startMins = sh * 60 + sm;
-                  const endMins = eh * 60 + em;
-                  const diff = endMins - startMins;
-                  const isActive = Math.abs(diff - mins) < 5;
+                {/* Quick Duration Presets */}
+                <div className="flex gap-2">
+                  {[30, 60, 90, 120].map(mins => {
+                    const [sh, sm] = formStartTime.split(':').map(Number);
+                    const [eh, em] = formEndTime.split(':').map(Number);
+                    const startMins = sh * 60 + sm;
+                    const endMins = eh * 60 + em;
+                    const diff = endMins - startMins;
+                    const isActive = Math.abs(diff - mins) < 5;
 
-                  return (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => handleQuickDuration(mins)}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors border ${isActive ? `${themeStyles.bg} text-white border-transparent` : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-                    >
-                      +{mins < 60 ? `${mins}m` : `${mins/60}h`}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => handleQuickDuration(mins)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors border ${isActive ? `${themeStyles.bg} text-white border-transparent` : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                      >
+                        +{mins < 60 ? `${mins}m` : `${mins/60}h`}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Visual Separator */}
