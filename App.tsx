@@ -4,6 +4,7 @@ import {
   Calendar as CalendarIcon, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
   Trash2, 
   Edit2, 
   Settings, 
@@ -126,7 +127,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "5.2.0"; // Timeline Layout & UX Polish
+const APP_VERSION = "5.5.2"; // Removed Category Focus Toggle
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -254,11 +255,56 @@ const ICON_MAP: Record<string, any> = {
 };
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
-  { id: 'phys', name: 'Health & Fitness', color: '#ef4444', icon: 'dumbbell', isDefault: true, isFocus: true, defaultTags: ['Cardio', 'Weights'] },
-  { id: 'work', name: 'Work', color: '#3b82f6', icon: 'briefcase', isDefault: true, isFocus: true, defaultTags: ['Deep Work', 'Meeting'] },
-  { id: 'pers', name: 'Personal', color: '#10b981', icon: 'user', isDefault: true, isFocus: false, defaultTags: ['Errands', 'Relax'] },
-  { id: 'learn', name: 'Learning', color: '#f59e0b', icon: 'book', isDefault: true, isFocus: true, defaultTags: ['Reading', 'Course'] },
-  { id: 'soc', name: 'Social', color: '#ec4899', icon: 'users', isDefault: true, isFocus: false, defaultTags: ['Family', 'Friends'] },
+  { 
+    id: 'phys', 
+    name: 'Health & Fitness', 
+    color: '#ef4444', 
+    icon: 'dumbbell', 
+    isDefault: true, 
+    isFocus: true, 
+    defaultTags: ['Cardio', 'Weights', 'Sport', 'Yoga'],
+    deepWorkTags: ['Cardio', 'Weights', 'Sport', 'Yoga'] 
+  },
+  { 
+    id: 'work', 
+    name: 'Work', 
+    color: '#3b82f6', 
+    icon: 'briefcase', 
+    isDefault: true, 
+    isFocus: true, 
+    defaultTags: ['Deep Work', 'Meeting', 'Email', 'Strategy', 'Coding', 'Admin'],
+    deepWorkTags: ['Deep Work', 'Strategy', 'Coding']
+  },
+  { 
+    id: 'pers', 
+    name: 'Personal', 
+    color: '#10b981', 
+    icon: 'user', 
+    isDefault: true, 
+    isFocus: false, 
+    defaultTags: ['Errands', 'Relax', 'Chore'],
+    deepWorkTags: []
+  },
+  { 
+    id: 'learn', 
+    name: 'Learning', 
+    color: '#f59e0b', 
+    icon: 'book', 
+    isDefault: true, 
+    isFocus: true, 
+    defaultTags: ['Reading', 'Course', 'Practice'],
+    deepWorkTags: ['Reading', 'Course', 'Practice']
+  },
+  { 
+    id: 'soc', 
+    name: 'Social', 
+    color: '#ec4899', 
+    icon: 'users', 
+    isDefault: true, 
+    isFocus: false, 
+    defaultTags: ['Family', 'Friends', 'Date'],
+    deepWorkTags: []
+  },
 ];
 
 const getCategoryIcon = (iconName: string | undefined, size = 14, className = "") => {
@@ -381,7 +427,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
         startTime: '13:00',
         endTime: '16:00',
         categoryId: 'work',
-        completed: isPast ? Math.random() > 0.1 : false // 90% completion
+        completed: isPast ? Math.random() > 0.1 : false, // 90% completion
+        tags: ['Meeting'] // Added tag for accurate impact calculation
       });
 
       // Evening (Learning or Social)
@@ -409,7 +456,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
           startTime: '19:00',
           endTime: '21:00',
           categoryId: 'soc',
-          completed: isPast ? Math.random() > 0.1 : false
+          completed: isPast ? Math.random() > 0.1 : false,
+          tags: ['Friends'] // Added tag
         });
       }
     } else { // Weekend
@@ -435,7 +483,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
         startTime: '13:00',
         endTime: '17:00',
         categoryId: 'soc',
-        completed: isPast ? Math.random() > 0.1 : false
+        completed: isPast ? Math.random() > 0.1 : false,
+        tags: ['Family'] // Added tag
       });
 
       if (Math.random() > 0.5) {
@@ -459,6 +508,10 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
 };
 
 // --- Sub-Components ---
+// ... [No changes to Tooltip, DatePicker, AuthModal, InsightModal, SettingsMenu, TemplateManager, ReflectionModal, CategoryManager, CustomXAxisTick, CustomDateRangeModal]
+// They are kept identical to save space in the diff, but in a real file they would be included.
+// For the purpose of this output, I will assume they are present.
+// RE-INCLUDING THEM FOR COMPLETENESS TO AVOID "..." IN OUTPUT ERRORS
 
 // Improved Custom Tooltip
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -973,19 +1026,18 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
   const [mode, setMode] = useState<'LIST' | 'EDITOR'>('LIST');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Unified Form State
   const initialFormState = {
     id: '',
     name: '',
     color: PALETTE_CONFIG[0].color,
     icon: 'tag',
     isFocus: false,
-    defaultTags: [] as string[]
+    defaultTags: [] as string[],
+    deepWorkTags: [] as string[]
   };
   const [formData, setFormData] = useState<Partial<CategoryConfig>>(initialFormState);
   const [tagInput, setTagInput] = useState('');
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setMode('LIST');
@@ -1007,10 +1059,8 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
     if (!formData.name?.trim()) return;
 
     if (formData.id) {
-      // Update Existing
       setCategories(categories.map((c: CategoryConfig) => c.id === formData.id ? formData : c));
     } else {
-      // Create New
       setCategories([...categories, { ...formData, id: crypto.randomUUID() }]);
     }
     setMode('LIST');
@@ -1024,9 +1074,14 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
 
   const handleAddTag = () => {
     if (tagInput.trim() && !formData.defaultTags?.includes(tagInput.trim())) {
+      const newTag = tagInput.trim();
+      // Default to NOT deep work when adding a new tag, user must explicitly toggle it.
+      const newDeepTags = formData.deepWorkTags || []; 
+      
       setFormData({
         ...formData,
-        defaultTags: [...(formData.defaultTags || []), tagInput.trim()]
+        defaultTags: [...(formData.defaultTags || []), newTag],
+        deepWorkTags: newDeepTags
       });
       setTagInput('');
     }
@@ -1035,8 +1090,24 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
   const handleRemoveTag = (tagToRemove: string) => {
     setFormData({
       ...formData,
-      defaultTags: formData.defaultTags?.filter(t => t !== tagToRemove)
+      defaultTags: formData.defaultTags?.filter(t => t !== tagToRemove),
+      deepWorkTags: formData.deepWorkTags?.filter(t => t !== tagToRemove)
     });
+  };
+
+  const handleToggleTagFocus = (tag: string) => {
+    const currentDeepTags = formData.deepWorkTags || [];
+    if (currentDeepTags.includes(tag)) {
+        setFormData({
+            ...formData,
+            deepWorkTags: currentDeepTags.filter(t => t !== tag)
+        });
+    } else {
+        setFormData({
+            ...formData,
+            deepWorkTags: [...currentDeepTags, tag]
+        });
+    }
   };
 
   const filteredCategories = categories.filter((c: CategoryConfig) => 
@@ -1159,23 +1230,6 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                        />
                     </div>
 
-                    {/* Focus Toggle */}
-                    <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
-                       <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${formData.isFocus ? 'bg-amber-100 text-amber-600' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400'}`}>
-                             <Zap size={18} className={formData.isFocus ? 'fill-amber-600' : ''} />
-                          </div>
-                          <div>
-                             <p className="font-bold text-sm dark:text-zinc-200">Deep Work / Focus</p>
-                             <p className="text-xs text-zinc-500">Counts toward productivity stats</p>
-                          </div>
-                       </div>
-                       <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={formData.isFocus} onChange={e => setFormData({...formData, isFocus: e.target.checked})} className="sr-only peer" />
-                          <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                       </label>
-                    </div>
-
                     {/* Color Picker */}
                     <div>
                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Color</label>
@@ -1209,16 +1263,29 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                        </div>
                     </div>
 
-                    {/* Default Tags */}
+                    {/* Default Tags & Deep Focus Configuration */}
                     <div>
-                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Default Tags</label>
+                       <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Default Tags & Deep Focus</label>
+                       <p className="text-[10px] text-zinc-400 mb-2">Click the bolt icon to mark a tag as High Impact / Deep Work.</p>
                        <div className="flex flex-wrap gap-2 mb-2">
-                          {formData.defaultTags?.map(tag => (
-                             <div key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">{tag}</span>
-                                <button onClick={() => handleRemoveTag(tag)} className="text-zinc-400 hover:text-red-500 transition-colors"><X size={12} /></button>
-                             </div>
-                          ))}
+                          {formData.defaultTags?.map(tag => {
+                             const isDeep = formData.deepWorkTags?.includes(tag);
+                             return (
+                               <div key={tag} className={`flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg border transition-colors ${isDeep ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700/50' : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'}`}>
+                                  <span className={`text-xs font-bold ${isDeep ? 'text-amber-700 dark:text-amber-400' : 'text-zinc-600 dark:text-zinc-300'}`}>{tag}</span>
+                                  <div className="flex items-center gap-0.5 border-l border-zinc-200 dark:border-zinc-700/50 pl-1 ml-1">
+                                      <button 
+                                        onClick={() => handleToggleTagFocus(tag)}
+                                        className={`p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors ${isDeep ? 'text-amber-500' : 'text-zinc-300 dark:text-zinc-600'}`}
+                                        title={isDeep ? "Deep Work (Active)" : "Mark as Deep Work"}
+                                      >
+                                          <Zap size={12} className={isDeep ? 'fill-amber-500' : ''} />
+                                      </button>
+                                      <button onClick={() => handleRemoveTag(tag)} className="p-1 text-zinc-400 hover:text-red-500 transition-colors rounded-md hover:bg-black/5 dark:hover:bg-white/10"><X size={12} /></button>
+                                  </div>
+                               </div>
+                             );
+                          })}
                        </div>
                        <div className="flex gap-2">
                           <input 
@@ -1250,7 +1317,6 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
   );
 };
 
-// Custom Chart Tick with Icons
 const CustomXAxisTick = ({ x, y, payload, categories }: any) => {
   const category = categories.find((c: any) => c.name === payload.value);
   const iconName = category?.icon || 'tag';
@@ -1338,6 +1404,10 @@ export default function App() {
     start: format(new Date(), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd')
   });
+
+  // Focus Distribution State
+  const [breakdownViewMode, setBreakdownViewMode] = useState<'CATEGORY' | 'TAG'>('CATEGORY');
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   const themeStyles = COLOR_THEMES[accentColor];
 
@@ -1474,7 +1544,7 @@ export default function App() {
 
   const todaysLog = useMemo(() => logs.find(l => l.date === formattedDate), [logs, formattedDate]);
 
-  // Unified Analytics Logic
+  // Unified Analytics Logic with Stacked Pillars Support (UPDATED FOR TAG LOGIC)
   const analytics = useMemo(() => {
     let filteredTasks = [];
     let filteredLogs = [];
@@ -1513,25 +1583,22 @@ export default function App() {
          return d >= start && d <= end;
       });
     } else {
-      // Default fallback for custom or errors
       filteredTasks = tasks.filter(t => t.date === formattedDate);
       filteredLogs = logs.filter(l => l.date === formattedDate);
     }
 
-    // Calculate Stats
+    // Stats Accumulators
     const total = filteredTasks.length;
     const completed = filteredTasks.filter(t => t.completed).length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     let totalMinutes = 0;
     let deepWorkMinutes = 0;
-    const categoryStats: Record<string, { completed: number, pending: number, total: number, color: string }> = {};
-    const catDurations: Record<string, number> = {};
-
-    // Initialize Categories
-    categories.forEach(c => { 
-      categoryStats[c.name] = { completed: 0, pending: 0, total: 0, color: c.color }; 
-    });
+    let focusCategoryMinutes = 0; // Effectively "High Impact Minutes"
+    
+    // Stacked Pillar Data Structures
+    const catStats: Record<string, { duration: number, color: string, icon?: string, name: string, segments: any[] }> = {};
+    let maxCategoryDuration = 0;
 
     filteredTasks.forEach(t => {
        const start = new Date(`${t.date}T${t.startTime}`);
@@ -1541,48 +1608,70 @@ export default function App() {
        totalMinutes += dur;
        
        const cat = categories.find(c => c.id === t.categoryId);
-       if (cat?.isFocus) {
+       const catId = t.categoryId;
+       const catName = cat?.name || 'Unknown';
+       const catColor = cat?.color || '#71717a';
+       const catIcon = cat?.icon;
+       const tagName = (t.tags && t.tags.length > 0) ? t.tags[0] : 'General';
+       
+       // NEW: Tag-based Deep Focus Logic - User Configurable via Category deepWorkTags
+       const isHighImpact = cat?.deepWorkTags?.includes(tagName);
+
+       if (isHighImpact) {
           if (t.completed) deepWorkMinutes += dur;
+          focusCategoryMinutes += dur;
        }
        
-       const catName = cat?.name || 'Other';
-       const catColor = cat?.color || '#94a3b8';
-
-       // Chart Data
-       if (!categoryStats[catName]) categoryStats[catName] = { completed: 0, pending: 0, total: 0, color: catColor };
-       const hours = dur / 60;
-       categoryStats[catName].total += hours;
-       if (t.completed) categoryStats[catName].completed += hours;
-       else categoryStats[catName].pending += hours;
-
-       // Top Activities Data
-       catDurations[catName] = (catDurations[catName] || 0) + dur;
+       // 1. Accumulate for Category View (with segments)
+       if (!catStats[catId]) {
+           catStats[catId] = { 
+               duration: 0, 
+               color: catColor, 
+               icon: catIcon, 
+               name: catName, 
+               segments: [] 
+           };
+       }
+       
+       catStats[catId].duration += dur;
+       // Add unique segment data for visualization
+       catStats[catId].segments.push({
+           name: tagName,
+           duration: dur,
+           completed: t.completed,
+           color: catColor
+       });
     });
 
-    // Bar Data
-    const barData = Object.entries(categoryStats)
-      .filter(([_, d]) => d.total > 0)
-      .map(([name, d]) => ({ 
-        name, 
-        completed: parseFloat(d.completed.toFixed(1)), 
-        pending: parseFloat(d.pending.toFixed(1)), 
-        total: parseFloat(d.total.toFixed(1)),
-        color: d.color
-      }))
-      .sort((a, b) => b.total - a.total);
+    // Post-process for visualization
+    const focusDistribution = Object.values(catStats).map(cat => {
+        // Group segments by Tag + Status to reduce DOM nodes
+        const groupedSegments: Record<string, any> = {};
+        cat.segments.forEach(seg => {
+            const key = `${seg.name}-${seg.completed}`;
+            if (!groupedSegments[key]) {
+                groupedSegments[key] = { ...seg };
+            } else {
+                groupedSegments[key].duration += seg.duration;
+            }
+        });
 
-    // Top Activities - Show all activities to replace the chart
-    const topActivities = Object.entries(catDurations)
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, mins]) => {
-         const cat = categories.find(c => c.name === name);
-         return { 
-           name, 
-           hours: (mins/60).toFixed(1),
-           color: cat?.color || '#71717a', // default zinc-500
-           icon: cat?.icon // Added icon
-         };
-      });
+        // Convert back to array and sort: Completed first, then by duration
+        const finalSegments = Object.values(groupedSegments).sort((a, b) => {
+            if (a.completed === b.completed) return b.duration - a.duration;
+            return a.completed ? -1 : 1;
+        });
+
+        if (cat.duration > maxCategoryDuration) maxCategoryDuration = cat.duration;
+
+        return {
+            ...cat,
+            hours: (cat.duration / 60).toFixed(1),
+            segments: finalSegments
+        };
+    }).sort((a, b) => b.duration - a.duration); // Sort categories by total duration
+
+    const highImpactPercentage = totalMinutes > 0 ? Math.round((focusCategoryMinutes / totalMinutes) * 100) : 0;
 
     // Mood
     const totalScore = filteredLogs.reduce((acc, l) => acc + l.score, 0);
@@ -1594,11 +1683,12 @@ export default function App() {
       completionRate,
       totalHours: (totalMinutes / 60).toFixed(1),
       deepWorkHours: (deepWorkMinutes / 60).toFixed(1),
-      barData,
-      topActivities,
+      focusDistribution,
+      maxCategoryDuration,
+      highImpactPercentage,
       avgMood
     };
-  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate, customRange]);
+  }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate, customRange]); 
 
   const handleSaveTask = (taskData: any) => {
     const newTask = { 
@@ -2008,62 +2098,98 @@ export default function App() {
                   </div>
                </div>
 
-               {/* Charts Area - Modified: Removed Chart, Expanded List */}
+               {/* Focus Distribution Widget (Renamed from Activity Breakdown) */}
                <div className="shrink-0 h-[32%] min-h-[200px] flex">
-                  {/* Top Activities List - Expanded to full width */}
+                  {/* Expanded to full width */}
                   <div className="w-full bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col h-full overflow-hidden">
+                     {/* Header */}
                      <div className="flex items-center justify-between mb-4 shrink-0">
-                         <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><ListFilter size={20} className="text-zinc-400"/> Activity Breakdown</h3>
-                         <span className="text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded">Sorted by duration</span>
+                         <div className="flex items-center gap-3">
+                             <h3 className="font-bold dark:text-white text-base flex items-center gap-2">
+                                <ListFilter size={20} className="text-zinc-400"/> Focus Distribution
+                             </h3>
+                         </div>
+                         <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-1 rounded">Sorted by Time</span>
+                         </div>
                      </div>
                      
-                     {analytics.topActivities.length > 0 ? (
-                        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-2">
+                     {analytics.focusDistribution.length > 0 ? (
+                        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-2 pb-2">
                            <div className="flex flex-col gap-4">
-                           {analytics.topActivities.map((activity: any, i: number) => {
-                              const percentage = Math.min(100, (parseFloat(activity.hours) / parseFloat(analytics.totalHours)) * 100);
-                              return (
-                                <div key={i} className="flex items-center gap-4">
-                                   <div className="font-bold text-sm text-zinc-300 w-4 text-center shrink-0">{i + 1}</div>
-                                   
-                                   <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0" style={{background: activity.color}}>
-                                      {getCategoryIcon(activity.icon, 18)}
-                                   </div>
-                                   
-                                   <div className="flex-1 min-w-0">
-                                      <div className="flex justify-between items-end mb-1.5">
-                                          <p className="font-bold text-sm dark:text-zinc-200 truncate leading-none">{activity.name}</p>
-                                          <div className="flex items-baseline gap-1">
-                                             <span className="font-bold text-sm dark:text-white">{activity.hours}</span>
-                                             <span className="text-[10px] text-zinc-500">hrs</span>
+                           {analytics.focusDistribution.map((cat: any) => (
+                              <div key={cat.id} className="group">
+                                 {/* Row Header */}
+                                 <div className="flex justify-between items-end mb-2">
+                                    <div className="flex items-center gap-2">
+                                       <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[10px] shadow-sm" style={{background: cat.color}}>
+                                          {getCategoryIcon(cat.icon, 12)}
+                                       </div>
+                                       <span className="font-bold text-sm dark:text-zinc-200">{cat.name}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1">
+                                       <span className="font-bold text-sm dark:text-white">{cat.hours}</span>
+                                       <span className="text-[10px] text-zinc-500">hrs</span>
+                                    </div>
+                                 </div>
+
+                                 {/* Stacked Focus Pillar */}
+                                 <div 
+                                    className="flex h-3 rounded-full overflow-hidden w-full relative" 
+                                    style={{ 
+                                       width: `${(cat.duration / analytics.maxCategoryDuration) * 100}%`,
+                                       minWidth: '20px' // Ensure visibility even for small items
+                                    }}
+                                 >
+                                    {cat.segments.map((seg: any, idx: number) => {
+                                       // Visual logic: Done = Solid, Pending = Striped
+                                       const isDone = seg.completed;
+                                       const widthPct = (seg.duration / cat.duration) * 100;
+                                       
+                                       return (
+                                          <div 
+                                             key={idx}
+                                             className="h-full relative transition-all hover:brightness-110 hover:z-10 cursor-help"
+                                             title={`${seg.name}: ${(seg.duration/60).toFixed(1)}h (${isDone ? 'Done' : 'Pending'})`}
+                                             style={{ 
+                                                width: `${widthPct}%`,
+                                                backgroundColor: cat.color,
+                                                opacity: isDone ? 1 : 0.35,
+                                                // If pending, apply stripe pattern via CSS
+                                                backgroundImage: isDone ? 'none' : `linear-gradient(45deg,rgba(255,255,255,0.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.15) 50%,rgba(255,255,255,0.15) 75%,transparent 75%,transparent)`,
+                                                backgroundSize: '6px 6px'
+                                             }}
+                                          >
+                                             {/* Divider line between segments for clarity */}
+                                             {idx < cat.segments.length - 1 && (
+                                                <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white/20 z-10"></div>
+                                             )}
                                           </div>
-                                      </div>
-                                      {/* New Visual Progress Bar */}
-                                      <div className="w-full bg-zinc-100 dark:bg-zinc-800/50 h-2 rounded-full overflow-hidden">
-                                         <div 
-                                            className="h-full rounded-full transition-all duration-500" 
-                                            style={{ width: `${percentage}%`, background: activity.color }}
-                                         />
-                                      </div>
-                                   </div>
-                                </div>
-                              );
-                           })}
+                                       )
+                                    })}
+                                 </div>
+                              </div>
+                           ))}
                            </div>
                         </div>
                      ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 text-sm">
                            <Activity size={32} className="mb-2 opacity-20" />
-                           No activity data yet
+                           No focus data yet
                         </div>
                      )}
+
+                     {/* Footer Insight */}
+                     <div className="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 text-center flex justify-center gap-1">
+                        You spent <span className="font-bold text-zinc-800 dark:text-white">{analytics.highImpactPercentage}%</span> of your time on High Impact tasks today.
+                     </div>
                   </div>
                </div>
 
-               {/* Week at a Glance */}
+               {/* Weekly Momentum (Renamed from Week at a Glance) */}
                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
                   <div className="px-5 pt-5 pb-3 shrink-0">
-                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><CalendarIcon size={20} className="text-zinc-400"/> Week at a Glance</h3>
+                     <h3 className="font-bold dark:text-white text-base flex items-center gap-2"><CalendarIcon size={20} className="text-zinc-400"/> Weekly Momentum</h3>
                   </div>
                   <div className="grid grid-cols-7 h-full divide-x divide-zinc-100 dark:divide-zinc-800 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                      {daysInWeek.map((day, i) => {
@@ -2077,11 +2203,11 @@ export default function App() {
                         const completed = dayTasks.filter(t => t.completed).length;
                         const completion = total > 0 ? Math.round((completed / total) * 100) : 0;
                         
-                        // Calculate Deep Work for the day
                         let deepWorkMins = 0;
                         dayTasks.forEach(t => {
                            const cat = categories.find(c => c.id === t.categoryId);
-                           if (cat?.isFocus) {
+                           const tagName = t.tags?.[0];
+                           if (cat?.deepWorkTags?.includes(tagName || '')) {
                               const start = new Date(`${t.date}T${t.startTime}`);
                               let end = new Date(`${t.date}T${t.endTime}`);
                               if (end < start) end = addDays(end, 1);

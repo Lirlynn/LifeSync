@@ -5,8 +5,9 @@ export interface CategoryConfig {
   color: string; // Hex code
   icon?: string; // Icon name from lucide-react
   isDefault?: boolean;
-  isFocus?: boolean; // Determines if this category counts towards Deep Work/Focus stats
+  isFocus?: boolean; // General indicator for productive category
   defaultTags?: string[]; // Auto-populated tags when category is selected
+  deepWorkTags?: string[]; // Specific tags that count as Deep Focus
 }
 
 export interface Task {
