@@ -123,7 +123,7 @@ import { auth, googleProvider } from "./firebase";
 
 // --- Constants & Themes ---
 
-const APP_VERSION = "3.2.0"; // Feedback Update
+const APP_VERSION = "5.0.0"; // Smart Time & Default Tags
 
 const TIME_START_HOUR = 5; // 5:00 AM
 const TIME_END_HOUR = 29; // 5:00 AM next day (covers until 04:59)
@@ -186,18 +186,32 @@ type ColorTheme = keyof typeof COLOR_THEMES;
 
 const CURATED_THEMES = ['red', 'orange', 'yellow', 'emerald', 'cyan', 'blue', 'violet'] as const;
 
-// Color Palette for Categories
-const CATEGORY_PALETTE = [
-  '#71717a', // Zinc/Grey
-  '#ef4444', // Red
-  '#f97316', // Orange
-  '#eab308', // Yellow
-  '#10b981', // Emerald
-  '#06b6d4', // Cyan
-  '#3b82f6', // Blue
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
+// Enhanced 21-Color Palette with Contrast Info
+const PALETTE_CONFIG = [
+  { color: '#71717a', isLight: false }, // Zinc
+  { color: '#64748b', isLight: false }, // Slate
+  { color: '#ef4444', isLight: false }, // Red
+  { color: '#f97316', isLight: false }, // Orange
+  { color: '#f59e0b', isLight: false }, // Amber
+  { color: '#eab308', isLight: true },  // Yellow
+  { color: '#84cc16', isLight: true },  // Lime
+  { color: '#22c55e', isLight: false }, // Green
+  { color: '#10b981', isLight: false }, // Emerald
+  { color: '#14b8a6', isLight: false }, // Teal
+  { color: '#06b6d4', isLight: false }, // Cyan
+  { color: '#0ea5e9', isLight: false }, // Sky
+  { color: '#3b82f6', isLight: false }, // Blue
+  { color: '#6366f1', isLight: false }, // Indigo
+  { color: '#8b5cf6', isLight: false }, // Violet
+  { color: '#a855f7', isLight: false }, // Purple
+  { color: '#d946ef', isLight: false }, // Fuchsia
+  { color: '#ec4899', isLight: false }, // Pink
+  { color: '#f43f5e', isLight: false }, // Rose
+  { color: '#854d0e', isLight: false }, // Brown
+  { color: '#27272a', isLight: false }, // Black
 ];
+
+const CATEGORY_PALETTE = PALETTE_CONFIG.map(p => p.color);
 
 const ICON_MAP: Record<string, any> = {
   dumbbell: Dumbbell,
@@ -237,11 +251,11 @@ const ICON_MAP: Record<string, any> = {
 };
 
 const DEFAULT_CATEGORIES: CategoryConfig[] = [
-  { id: 'phys', name: 'Health & Fitness', color: '#ef4444', icon: 'dumbbell', isDefault: true, isFocus: true },
-  { id: 'work', name: 'Work', color: '#3b82f6', icon: 'briefcase', isDefault: true, isFocus: true },
-  { id: 'pers', name: 'Personal', color: '#10b981', icon: 'user', isDefault: true, isFocus: false },
-  { id: 'learn', name: 'Learning', color: '#f59e0b', icon: 'book', isDefault: true, isFocus: true },
-  { id: 'soc', name: 'Social', color: '#ec4899', icon: 'users', isDefault: true, isFocus: false },
+  { id: 'phys', name: 'Health & Fitness', color: '#ef4444', icon: 'dumbbell', isDefault: true, isFocus: true, defaultTags: ['Cardio', 'Weights'] },
+  { id: 'work', name: 'Work', color: '#3b82f6', icon: 'briefcase', isDefault: true, isFocus: true, defaultTags: ['Deep Work', 'Meeting'] },
+  { id: 'pers', name: 'Personal', color: '#10b981', icon: 'user', isDefault: true, isFocus: false, defaultTags: ['Errands', 'Relax'] },
+  { id: 'learn', name: 'Learning', color: '#f59e0b', icon: 'book', isDefault: true, isFocus: true, defaultTags: ['Reading', 'Course'] },
+  { id: 'soc', name: 'Social', color: '#ec4899', icon: 'users', isDefault: true, isFocus: false, defaultTags: ['Family', 'Friends'] },
 ];
 
 const getCategoryIcon = (iconName: string | undefined, size = 14, className = "") => {
@@ -335,7 +349,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
           startTime: '06:00',
           endTime: '07:30',
           categoryId: 'phys',
-          completed: isPast ? Math.random() > 0.2 : false // 80% completion chance
+          completed: isPast ? Math.random() > 0.2 : false, // 80% completion chance
+          tags: ['Cardio']
         });
       }
 
@@ -349,7 +364,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
         startTime: '09:00',
         endTime: '12:00',
         categoryId: 'work',
-        completed: isPast ? Math.random() > 0.3 : false // 70% completion
+        completed: isPast ? Math.random() > 0.3 : false, // 70% completion
+        tags: ['Deep Work']
       });
 
       // Afternoon Work
@@ -377,7 +393,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
           startTime: '20:00',
           endTime: '21:00',
           categoryId: 'learn',
-          completed: isPast ? Math.random() > 0.4 : false
+          completed: isPast ? Math.random() > 0.4 : false,
+          tags: ['Reading']
         });
       } else if (eveningRand > 0.3) {
         tasks.push({
@@ -402,7 +419,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
         startTime: '08:00',
         endTime: '11:00',
         categoryId: 'phys',
-        completed: isPast ? Math.random() > 0.3 : false
+        completed: isPast ? Math.random() > 0.3 : false,
+        tags: ['Cardio']
       });
       
       tasks.push({
@@ -427,7 +445,8 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
           startTime: '19:00',
           endTime: '21:00',
           categoryId: 'learn',
-          completed: isPast ? Math.random() > 0.5 : false
+          completed: isPast ? Math.random() > 0.5 : false,
+          tags: ['Course']
         });
       }
     }
@@ -438,16 +457,15 @@ const generateMockData = (): { tasks: Task[], logs: DailyLog[] } => {
 
 // --- Sub-Components ---
 
-// Minimalist 24h Time Picker
-const CustomTimePicker = ({ value, onChange, label, themeStyles }: any) => {
+// Smart Time Input Component (v5.0)
+const SmartTimeInput = ({ value, onChange, label, themeStyles }: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Parse HH:mm
-  const [hours, minutes] = value ? value.split(':') : ['09', '00'];
+  const [localValue, setLocalValue] = useState(value);
 
-  const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minuteOptions = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -459,67 +477,74 @@ const CustomTimePicker = ({ value, onChange, label, themeStyles }: any) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  const handleHourSelect = (h: string) => {
-    onChange(`${h}:${minutes}`);
+  const handleBlur = () => {
+    let clean = localValue.replace(/[^0-9]/g, '');
+    let formatted = '09:00'; // Fallback
+
+    if (clean.length === 0) return; // Leave as is if empty? Or reset?
+
+    if (clean.length <= 2) {
+      // e.g. "9" -> "09:00", "14" -> "14:00"
+      const h = parseInt(clean, 10);
+      if (h >= 0 && h < 24) formatted = `${h.toString().padStart(2, '0')}:00`;
+    } else if (clean.length === 3) {
+      // e.g. "930" -> "09:30"
+      const h = parseInt(clean.substring(0, 1), 10);
+      const m = parseInt(clean.substring(1), 10);
+      if (h >= 0 && h < 24 && m >= 0 && m < 60) formatted = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    } else if (clean.length >= 4) {
+      // e.g. "1430" -> "14:30"
+      const h = parseInt(clean.substring(0, 2), 10);
+      const m = parseInt(clean.substring(2, 4), 10);
+      if (h >= 0 && h < 24 && m >= 0 && m < 60) formatted = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    setLocalValue(formatted);
+    onChange(formatted);
   };
 
-  const handleMinuteSelect = (m: string) => {
-    onChange(`${hours}:${m}`);
-    setIsOpen(false); // Close after picking minute
-  };
+  const timeOptions = [];
+  for (let i = 0; i < 24; i++) {
+    timeOptions.push(`${i.toString().padStart(2, '0')}:00`);
+    timeOptions.push(`${i.toString().padStart(2, '0')}:30`);
+  }
 
   return (
     <div className="flex-1 relative" ref={containerRef}>
-       {label && <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">{label}</label>}
-       <button
-         type="button"
-         onClick={() => setIsOpen(!isOpen)}
-         className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 text-left flex items-center justify-between hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
-       >
-         <span className="font-mono text-lg font-medium dark:text-white tracking-wider">{value || '09:00'}</span>
-         <Clock size={16} className="text-zinc-400" />
-       </button>
-       
-       <input type="hidden" name={label ? label.toLowerCase().replace(' ', '') : 'time'} value={value} />
+      {label && <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">{label}</label>}
+      <div className="relative group">
+        <input 
+          type="text"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          onFocus={() => setIsOpen(false)} // Don't open dropdown on text focus
+          maxLength={5}
+          className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 pr-10 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono text-sm dark:text-white transition-all"
+        />
+        <button 
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-indigo-500 transition-colors"
+        >
+          <Clock size={16} />
+        </button>
+      </div>
 
-       {isOpen && (
-         <div className="absolute top-full left-0 w-64 mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-[60] flex overflow-hidden">
-            <div className="flex-1 border-r border-zinc-100 dark:border-zinc-800">
-               <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">Hour</div>
-               <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
-                  <div className="grid grid-cols-2 gap-1">
-                    {hourOptions.map(h => (
-                      <button 
-                        key={h} 
-                        type="button"
-                        onClick={() => handleHourSelect(h)}
-                        className={`py-1.5 rounded-lg text-sm font-medium transition-colors ${h === hours ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-300'}`}
-                      >
-                        {h}
-                      </button>
-                    ))}
-                  </div>
-               </div>
-            </div>
-            <div className="flex-1">
-               <div className="px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">Minute</div>
-               <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
-                   <div className="grid grid-cols-1 gap-1">
-                    {minuteOptions.map(m => (
-                      <button 
-                        key={m} 
-                        type="button"
-                        onClick={() => handleMinuteSelect(m)}
-                        className={`py-1.5 rounded-lg text-sm font-medium transition-colors ${m === minutes ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-300'}`}
-                      >
-                        {m}
-                      </button>
-                    ))}
-                   </div>
-               </div>
-            </div>
-         </div>
-       )}
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto custom-scrollbar">
+           {timeOptions.map(t => (
+             <button
+               key={t}
+               type="button"
+               onClick={() => { onChange(t); setIsOpen(false); }}
+               className={`w-full text-left px-4 py-2 text-sm font-mono hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${t === value ? `${themeStyles.text} font-bold bg-zinc-50 dark:bg-zinc-800/50` : 'text-zinc-600 dark:text-zinc-300'}`}
+             >
+               {t}
+             </button>
+           ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -1036,16 +1061,22 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
   const [name, setName] = useState('');
   const [isFocus, setIsFocus] = useState(true);
   const [selectedIcon, setSelectedIcon] = useState('tag');
-  const [selectedColor, setSelectedColor] = useState(CATEGORY_PALETTE[0]);
+  const [selectedColor, setSelectedColor] = useState(PALETTE_CONFIG[0].color);
+  const [defaultTags, setDefaultTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editIsFocus, setEditIsFocus] = useState(false);
   const [editIcon, setEditIcon] = useState('tag');
-  const [editColor, setEditColor] = useState(CATEGORY_PALETTE[0]);
+  const [editColor, setEditColor] = useState(PALETTE_CONFIG[0].color);
+  const [editDefaultTags, setEditDefaultTags] = useState<string[]>([]);
+  const [editTagInput, setEditTagInput] = useState('');
 
   useEffect(() => {
     setEditingId(null);
+    setDefaultTags([]);
+    setTagInput('');
   }, [isOpen]);
 
   const handleStartEdit = (cat: CategoryConfig) => {
@@ -1054,14 +1085,36 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
     setEditIsFocus(cat.isFocus || false);
     setEditIcon(cat.icon || 'tag');
     setEditColor(cat.color);
+    setEditDefaultTags(cat.defaultTags || []);
   };
 
   const handleSaveEdit = () => {
     if (!editingId || !editName.trim()) return;
     setCategories(categories.map((c: CategoryConfig) => 
-      c.id === editingId ? { ...c, name: editName, isFocus: editIsFocus, icon: editIcon, color: editColor } : c
+      c.id === editingId ? { 
+        ...c, 
+        name: editName, 
+        isFocus: editIsFocus, 
+        icon: editIcon, 
+        color: editColor,
+        defaultTags: editDefaultTags
+      } : c
     ));
     setEditingId(null);
+  };
+
+  const handleAddDefaultTag = () => {
+    if (tagInput.trim() && !defaultTags.includes(tagInput.trim())) {
+      setDefaultTags([...defaultTags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const handleAddEditDefaultTag = () => {
+    if (editTagInput.trim() && !editDefaultTags.includes(editTagInput.trim())) {
+      setEditDefaultTags([...editDefaultTags, editTagInput.trim()]);
+      setEditTagInput('');
+    }
   };
   
   const iconList = Object.keys(ICON_MAP);
@@ -1076,42 +1129,68 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
         <div className="flex flex-col gap-3 mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
            <div className="flex gap-2">
              <input value={name} onChange={e=>setName(e.target.value)} placeholder="New Category Name" className="flex-1 bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700 outline-none dark:text-white text-sm"/>
-             <button onClick={()=>{if(name)setCategories([...categories,{id:crypto.randomUUID(),name,color: selectedColor, isFocus, icon: selectedIcon}]);setName('')}} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-4 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none`}><Plus size={20}/></button>
+             <button onClick={()=>{if(name)setCategories([...categories,{id:crypto.randomUUID(),name,color: selectedColor, isFocus, icon: selectedIcon, defaultTags}]);setName('');setDefaultTags([]);}} className={`${themeStyles.bg} ${themeStyles.hover} text-white px-4 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-none`}><Plus size={20}/></button>
            </div>
            
            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-500 select-none">
+              <label className="flex items-center gap-2 cursor-pointer text-[10px] uppercase font-bold text-zinc-500 select-none">
                 <input type="checkbox" checked={isFocus} onChange={e => setIsFocus(e.target.checked)} className={`accent-${themeStyles.text.split('-')[1]}-600 rounded`} />
                 <span>Focus / High Impact?</span>
               </label>
            </div>
            
-           {/* Color Picker Row */}
-           <div className="flex items-center gap-2 mt-1">
-             <span className="text-xs text-zinc-500">Color:</span>
-             <div className="flex gap-2">
-                {CATEGORY_PALETTE.map(color => (
+           {/* Color Picker Grid */}
+           <div className="flex flex-col gap-1 mt-1">
+             <span className="text-[10px] font-bold text-zinc-500 uppercase">Color</span>
+             <div className="grid grid-cols-7 gap-3">
+                {PALETTE_CONFIG.map(({color, isLight}) => (
                    <button 
                      key={color} 
                      onClick={() => setSelectedColor(color)}
-                     className={`w-5 h-5 rounded-full ${selectedColor === color ? 'ring-2 ring-white dark:ring-zinc-900 ring-offset-1 ring-offset-zinc-400' : ''}`}
+                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 shadow-sm ${selectedColor === color ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-zinc-500' : ''}`}
                      style={{backgroundColor: color}}
-                   />
+                   >
+                     {selectedColor === color && <Check size={16} className={isLight ? 'text-black' : 'text-white'} />}
+                   </button>
                 ))}
              </div>
            </div>
 
-           {/* Icon Grid for Creation */}
-           <div className="grid grid-cols-8 gap-2 mt-1">
-              {iconList.map(iconKey => (
-                 <button 
-                   key={iconKey} 
-                   onClick={() => setSelectedIcon(iconKey)}
-                   className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${selectedIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
-                 >
-                    {getCategoryIcon(iconKey, 14)}
-                 </button>
-              ))}
+           {/* Icon Grid */}
+           <div className="flex flex-col gap-1 mt-1">
+             <span className="text-[10px] font-bold text-zinc-500 uppercase">Icon</span>
+             <div className="grid grid-cols-7 gap-3">
+                {iconList.map(iconKey => (
+                   <button 
+                     key={iconKey} 
+                     onClick={() => setSelectedIcon(iconKey)}
+                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${selectedIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
+                   >
+                      {getCategoryIcon(iconKey, 14)}
+                   </button>
+                ))}
+             </div>
+           </div>
+
+           {/* Default Tags */}
+           <div className="flex flex-col gap-1 mt-1">
+             <span className="text-[10px] font-bold text-zinc-500 uppercase">Default Tags</span>
+             <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 flex-wrap">
+                {defaultTags.map(tag => (
+                  <span key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
+                    {tag}
+                    <button onClick={() => setDefaultTags(defaultTags.filter(t => t !== tag))} className="hover:text-red-500"><X size={10} /></button>
+                  </span>
+                ))}
+                <input 
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddDefaultTag(); }}
+                  placeholder="Add tag..."
+                  className="bg-transparent text-xs outline-none flex-1 min-w-[60px] dark:text-white"
+                />
+                <button onClick={handleAddDefaultTag} className="text-zinc-400 hover:text-zinc-600"><Plus size={14} /></button>
+             </div>
            </div>
         </div>
 
@@ -1120,7 +1199,7 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
            {categories.map((c:any)=>(
              <div key={c.id} className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 transition-colors">
                 {editingId === c.id ? (
-                   <div className="flex-1 flex flex-col gap-2">
+                   <div className="flex-1 flex flex-col gap-3">
                       <div className="flex gap-2">
                           <input 
                             value={editName} 
@@ -1133,40 +1212,59 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                           </div>
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                          <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-500">
-                            <input type="checkbox" checked={editIsFocus} onChange={e => setEditIsFocus(e.target.checked)} className="accent-indigo-600" />
-                            <span>Focus?</span>
-                          </label>
-                      </div>
-
-                       {/* Color Edit Row */}
-                       <div className="flex items-center gap-2 mt-1">
-                         <span className="text-xs text-zinc-500">Color:</span>
-                         <div className="flex gap-2">
-                            {CATEGORY_PALETTE.map(color => (
+                      {/* Edit Color Grid */}
+                      <div className="flex flex-col gap-1">
+                         <span className="text-[10px] font-bold text-zinc-500 uppercase">Color</span>
+                         <div className="grid grid-cols-7 gap-2">
+                            {PALETTE_CONFIG.map(({color, isLight}) => (
                                <button 
                                  key={color} 
                                  onClick={() => setEditColor(color)}
-                                 className={`w-4 h-4 rounded-full ${editColor === color ? 'ring-2 ring-zinc-500 ring-offset-1' : ''}`}
+                                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${editColor === color ? 'ring-2 ring-zinc-500 ring-offset-1' : ''}`}
                                  style={{backgroundColor: color}}
-                               />
+                               >
+                                 {editColor === color && <Check size={10} className={isLight ? 'text-black' : 'text-white'} />}
+                               </button>
                             ))}
                          </div>
                        </div>
 
-                      {/* Icon Edit Grid */}
-                      <div className="grid grid-cols-8 gap-2 mt-1">
-                        {iconList.map(iconKey => (
-                           <button 
-                             key={iconKey} 
-                             onClick={() => setEditIcon(iconKey)}
-                             className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${editIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
-                           >
-                              {getCategoryIcon(iconKey, 12)}
-                           </button>
-                        ))}
+                      {/* Edit Icon Grid */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase">Icon</span>
+                        <div className="grid grid-cols-7 gap-2">
+                          {iconList.map(iconKey => (
+                             <button 
+                               key={iconKey} 
+                               onClick={() => setEditIcon(iconKey)}
+                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${editIcon === iconKey ? `${themeStyles.bg} text-white` : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500'}`}
+                             >
+                                {getCategoryIcon(iconKey, 14)}
+                             </button>
+                          ))}
+                        </div>
                       </div>
+
+                      {/* Edit Default Tags */}
+                      <div className="flex flex-col gap-1">
+                         <span className="text-[10px] font-bold text-zinc-500 uppercase">Default Tags</span>
+                         <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 flex-wrap">
+                            {editDefaultTags.map(tag => (
+                              <span key={tag} className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
+                                {tag}
+                                <button onClick={() => setEditDefaultTags(editDefaultTags.filter(t => t !== tag))} className="hover:text-red-500"><X size={10} /></button>
+                              </span>
+                            ))}
+                            <input 
+                              value={editTagInput}
+                              onChange={e => setEditTagInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') handleAddEditDefaultTag(); }}
+                              placeholder="Add tag..."
+                              className="bg-transparent text-xs outline-none flex-1 min-w-[60px] dark:text-white"
+                            />
+                            <button onClick={handleAddEditDefaultTag} className="text-zinc-400 hover:text-zinc-600"><Plus size={14} /></button>
+                         </div>
+                       </div>
                    </div>
                 ) : (
                    <>
@@ -1179,6 +1277,11 @@ const CategoryManager = ({ isOpen, onClose, categories, setCategories, themeStyl
                             {c.name}
                             {c.isFocus && <Zap size={10} className="text-amber-500 fill-amber-500" />}
                           </span>
+                          <div className="flex gap-1 mt-0.5">
+                             {c.defaultTags?.slice(0, 3).map((t: string) => (
+                               <span key={t} className="text-[9px] bg-zinc-100 dark:bg-zinc-700/50 px-1 rounded text-zinc-500">{t}</span>
+                             ))}
+                          </div>
                        </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -1278,10 +1381,15 @@ export default function App() {
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   
   const [taskImpact, setTaskImpact] = useState(5);
+  const [taskTags, setTaskTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   
   // Custom Time Picker State for Form
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:00');
+  // Local state to track selected category in modal to trigger side-effects
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Custom Date Range State
   const [isCustomDateModalOpen, setIsCustomDateModalOpen] = useState(false);
@@ -1332,13 +1440,57 @@ export default function App() {
     document.documentElement.className = theme;
   }, [theme]);
 
+  // SMART TASK LOGIC: Auto-calculate next slot and crossover
   useEffect(() => {
      if (isTaskModalOpen) {
-        setTaskImpact(editingTask?.impact || 5);
-        setFormStartTime(editingTask?.startTime || '09:00');
-        setFormEndTime(editingTask?.endTime || '10:00');
+        if (editingTask) {
+            // Edit Mode: Use existing values
+            setTaskImpact(editingTask.impact || 5);
+            setFormStartTime(editingTask.startTime || '09:00');
+            setFormEndTime(editingTask.endTime || '10:00');
+            setTaskTags(editingTask.tags || []);
+            setSelectedCategoryId(editingTask.categoryId || categories[0].id);
+        } else {
+            // New Task Mode: Smart Calculation
+            const now = new Date();
+            const start = new Date(now);
+            start.setSeconds(0, 0);
+            
+            // Round UP to next 30-minute slot
+            const remainder = 30 - (start.getMinutes() % 30);
+            const smartStart = addMinutes(start, remainder);
+            const smartEnd = addMinutes(smartStart, 60);
+            
+            setFormStartTime(format(smartStart, 'HH:mm'));
+            setFormEndTime(format(smartEnd, 'HH:mm'));
+            setTaskImpact(5);
+            
+            // Select default category but DON'T populate tags yet to keep it clean unless user interactions happen? 
+            // Or strictly follow prompt: "Auto-Select Tags... When user clicks" -> implies interaction.
+            // But let's set initial state cleanly.
+            setTaskTags([]);
+            setSelectedCategoryId(categories[0].id);
+
+            // Crossover Check: If smart start is tomorrow relative to 'now', switch view
+            if (!isSameDay(now, smartStart)) {
+                // If user is currently viewing 'Today', move them to 'Tomorrow' automatically
+                // This ensures the task they are creating lands on the visual timeline they see
+                if (isSameDay(currentDate, now)) {
+                    setCurrentDate(addDays(currentDate, 1));
+                }
+            }
+        }
+        setTagInput('');
+        setIsTagDropdownOpen(false);
      }
   }, [isTaskModalOpen, editingTask]);
+
+  const uniqueTags = useMemo(() => {
+    const tags = new Set<string>();
+    tasks.forEach(t => t.tags?.forEach(tag => tags.add(tag)));
+    categories.forEach(c => c.defaultTags?.forEach(tag => tags.add(tag))); // Also include default tags in suggestion list
+    return Array.from(tags).sort();
+  }, [tasks, categories]);
 
   const formattedDate = format(currentDate, 'yyyy-MM-dd');
   const daysInWeek = useMemo(() => {
@@ -1476,9 +1628,29 @@ export default function App() {
   }, [tasks, logs, currentDate, insightTimeRange, categories, formattedDate, customRange]);
 
   const handleSaveTask = (formData: any) => {
-    const newTask = { ...formData, id: formData.id || crypto.randomUUID(), date: formattedDate, completed: formData.completed || false };
+    const newTask = { 
+      ...formData, 
+      id: formData.id || crypto.randomUUID(), 
+      date: formattedDate, 
+      completed: formData.completed || false,
+      tags: taskTags 
+    };
     setTasks(prev => formData.id ? prev.map(t => t.id === formData.id ? newTask : t) : [...prev, newTask]);
     setIsTaskModalOpen(false); setEditingTask(undefined);
+  };
+
+  const handleCategorySelect = (catId: string) => {
+    setSelectedCategoryId(catId);
+    
+    // Only auto-populate tags if creating a new task, or if the user hasn't heavily modified tags yet (simple heuristic)
+    // For V5.0 per prompt: "Auto-Select Tags... When the user clicks a Category button". 
+    // This implies instant population.
+    const cat = categories.find(c => c.id === catId);
+    if (cat && cat.defaultTags) {
+      setTaskTags(cat.defaultTags);
+    } else {
+      setTaskTags([]);
+    }
   };
 
   const handleSaveReflection = (logData: DailyLog) => {
@@ -1553,13 +1725,19 @@ export default function App() {
 
   const handleExport = () => {
     const data = {
-      version: APP_VERSION,
-      timestamp: new Date().toISOString(),
+      meta: {
+        version: APP_VERSION,
+        exportDate: new Date().toISOString(),
+      },
+      settings: {
+        themeColor: accentColor,
+        isDarkMode: theme === 'dark'
+      },
+      user: { name: user?.name, email: user?.email },
+      categories,
       tasks,
       logs,
-      categories,
-      templates,
-      user: { name: user?.name, email: user?.email } 
+      templates
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1613,12 +1791,21 @@ export default function App() {
     setFormEndTime(format(newEnd, 'HH:mm'));
   };
 
+  // Tag Input Handler
+  const addTag = (tag: string) => {
+    if (taskTags.length < 5 && !taskTags.includes(tag)) {
+      setTaskTags([...taskTags, tag]);
+      setTagInput('');
+      setIsTagDropdownOpen(false);
+    }
+  };
+
   if (!user) return <AuthModal isOpen={true} onLogin={setUser} />;
 
   return (
     <div className={`flex flex-col lg:flex-row h-screen w-screen overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 font-sans transition-colors duration-300`}>
       {/* LEFT COLUMN - TIMELINE */}
-      <div className="w-full lg:w-5/12 h-full flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 relative z-20 shadow-xl lg:shadow-none min-h-0">
+      <div className="w-full lg:w-[35%] min-w-[350px] h-full flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 relative z-20 shadow-xl lg:shadow-none min-h-0">
         <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-20 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-3">
              <div className="bg-zinc-100 dark:bg-zinc-800 p-2.5 rounded-xl"><CalendarIcon className={themeStyles.text} size={20} /></div>
@@ -1695,7 +1882,16 @@ export default function App() {
                                <h3 className={`font-bold text-xs truncate leading-tight ${task.completed ? 'line-through text-zinc-500' : ''}`}>{task.title}</h3>
                                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">{task.startTime}-{task.endTime}</span>
                             </div>
-                            {task.description && (
+                            {task.tags && task.tags.length > 0 && (
+                               <div className="flex items-center gap-1 mx-2 flex-shrink overflow-hidden">
+                                  {task.tags.map(tag => (
+                                    <span key={tag} className="text-[8px] uppercase font-bold px-1 py-0.5 rounded-sm flex-shrink-0" style={{ backgroundColor: `${catConfig.color}33`, color: catConfig.color }}>
+                                      {tag}
+                                    </span>
+                                  ))}
+                               </div>
+                            )}
+                            {task.description && !task.tags?.length && (
                                <div className="flex-1 border-l border-zinc-200 dark:border-zinc-700 pl-2 min-w-0 h-full flex items-center">
                                   <p className={`text-[10px] truncate ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>{task.description}</p>
                                </div>
@@ -1705,7 +1901,18 @@ export default function App() {
                          // Standard Vertical Layout
                          <div className="flex flex-col h-full">
                             <div className="flex justify-between items-start"><h3 className={`font-bold text-sm leading-tight truncate ${task.completed && 'line-through text-zinc-500'}`}>{task.title}</h3></div>
-                            <div className="flex items-center gap-2 mt-0.5 mb-1"><span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-1.5 rounded">{task.startTime}-{task.endTime}</span></div>
+                            <div className="flex items-center gap-2 mt-0.5 mb-1">
+                              <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-700 px-1.5 rounded">{task.startTime}-{task.endTime}</span>
+                              {task.tags && task.tags.length > 0 && (
+                                 <div className="flex items-center gap-1 flex-wrap">
+                                    {task.tags.map(tag => (
+                                      <span key={tag} className="text-[8px] uppercase font-bold px-1 py-0.5 rounded-sm" style={{ backgroundColor: `${catConfig.color}33`, color: catConfig.color }}>
+                                        {tag}
+                                      </span>
+                                    ))}
+                                 </div>
+                              )}
+                            </div>
                             {task.description && (
                                <p className={`text-xs leading-snug line-clamp-3 group-hover:line-clamp-none ${task.completed ? 'text-zinc-400' : 'text-zinc-500 dark:text-zinc-400'}`}>
                                  {task.description}
@@ -1722,8 +1929,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* RIGHT COLUMN - DASHBOARD - FIXED FIT TO SCREEN */}
-      <div className="flex-1 h-full flex flex-col relative min-w-0 overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+      {/* RIGHT COLUMN - DASHBOARD */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 min-w-0">
          {/* Top Navigation Bar */}
          <div className="px-6 py-5 flex justify-between items-center bg-transparent z-20 shrink-0">
             <div>
@@ -1994,27 +2201,27 @@ export default function App() {
                  impact: Number(formData.get('impact')),
                  startTime: formStartTime,
                  endTime: formEndTime,
-                 categoryId: formData.get('categoryId')
+                 categoryId: selectedCategoryId
                });
             }}>
+              {/* 1. Title Input */}
               <input name="title" required defaultValue={editingTask?.title} placeholder="Task Title" className="w-full mb-3 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
               
-              {/* Custom Time Picker */}
+              {/* 2. Time Section */}
               <div className="flex gap-3 mb-2">
-                 <CustomTimePicker value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
-                 <CustomTimePicker value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
+                 <SmartTimeInput value={formStartTime} onChange={setFormStartTime} label="Start Time" themeStyles={themeStyles} />
+                 <SmartTimeInput value={formEndTime} onChange={setFormEndTime} label="End Time" themeStyles={themeStyles} />
               </div>
 
               {/* Quick Duration Presets */}
               <div className="flex gap-2 mb-4">
                 {[30, 60, 90, 120].map(mins => {
-                  // Calculate active state for button
                   const [sh, sm] = formStartTime.split(':').map(Number);
                   const [eh, em] = formEndTime.split(':').map(Number);
                   const startMins = sh * 60 + sm;
                   const endMins = eh * 60 + em;
                   const diff = endMins - startMins;
-                  const isActive = Math.abs(diff - mins) < 5; // Allow small margin
+                  const isActive = Math.abs(diff - mins) < 5;
 
                   return (
                     <button
@@ -2029,13 +2236,99 @@ export default function App() {
                 })}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {categories.map(cat => (
-                   <label key={cat.id} className="cursor-pointer"><input type="radio" name="categoryId" value={cat.id} defaultChecked={editingTask?.categoryId === cat.id || (!editingTask && cat.id === categories[0].id)} className="peer hidden" /><div className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 peer-checked:ring-2 peer-checked:ring-offset-1 flex items-center justify-center text-xs font-bold px-1 transition-all" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>{cat.name}</div></label>
-                ))}
+              {/* Visual Separator */}
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-4" />
+
+              {/* 3. Context Section */}
+              <div className="space-y-4 mb-4">
+                {/* Categories */}
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2">Category</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.map(cat => (
+                       <label key={cat.id} className="cursor-pointer">
+                         <input 
+                           type="radio" 
+                           name="categoryId" 
+                           value={cat.id} 
+                           checked={selectedCategoryId === cat.id}
+                           onChange={() => handleCategorySelect(cat.id)}
+                           className="peer hidden" 
+                         />
+                         <div className="h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 peer-checked:ring-2 peer-checked:ring-offset-1 flex items-center justify-center text-xs font-bold px-1 transition-all" style={{ backgroundColor: `${cat.color}15`, color: cat.color }}>
+                           {cat.name}
+                         </div>
+                       </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Smart Tag Selector */}
+                <div className="relative">
+                  <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2">Tags</label>
+                  <div 
+                    className="w-full p-2.5 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500 flex items-center flex-wrap gap-2 min-h-[44px]"
+                    onClick={() => setIsTagDropdownOpen(true)}
+                  >
+                    <Tag size={16} className="text-zinc-400 mr-1" />
+                    {taskTags.map(tag => (
+                      <span key={tag} className="flex items-center gap-1 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-bold shadow-sm">
+                        {tag}
+                        <button 
+                          type="button" 
+                          onClick={(e) => { e.stopPropagation(); setTaskTags(taskTags.filter(t => t !== tag)); }} 
+                          className="hover:text-red-500"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                    <input 
+                      value={tagInput}
+                      onChange={e => { setTagInput(e.target.value); setIsTagDropdownOpen(true); }}
+                      onFocus={() => setIsTagDropdownOpen(true)}
+                      placeholder={taskTags.length === 0 ? "Select or type..." : ""}
+                      className="flex-1 bg-transparent outline-none text-sm dark:text-white min-w-[80px]"
+                    />
+                  </div>
+                  
+                  {isTagDropdownOpen && (
+                    <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                        {uniqueTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !taskTags.includes(t)).map(tag => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => addTag(tag)}
+                            className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm dark:text-zinc-200 flex items-center gap-2"
+                          >
+                            <Tag size={14} className="text-zinc-400" />
+                            {tag}
+                          </button>
+                        ))}
+                        {tagInput.trim() && !uniqueTags.includes(tagInput.trim()) && !taskTags.includes(tagInput.trim()) && (
+                           <button
+                             type="button"
+                             onClick={() => addTag(tagInput.trim())}
+                             className="w-full text-left px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800"
+                           >
+                             <Plus size={14} />
+                             Create "{tagInput}"
+                           </button>
+                        )}
+                        <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
+                        <button type="button" onClick={() => setIsTagDropdownOpen(false)} className="w-full text-center py-2 text-xs text-zinc-400 hover:text-zinc-600">Close</button>
+                    </div>
+                  )}
+                  {isTagDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsTagDropdownOpen(false)} />}
+                </div>
               </div>
+
+              {/* Visual Separator */}
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-4" />
+
+              {/* 4. Details Section */}
               <div className="mb-4">
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Impact / Priority (1-10)</label>
+                <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2">Priority (1-10)</label>
                 <div className="flex items-center gap-2">
                   <input 
                     type="range" 
@@ -2050,6 +2343,8 @@ export default function App() {
                 </div>
               </div>
               <div className="mb-6"><textarea name="description" defaultValue={editingTask?.description} placeholder="Notes..." className="w-full h-20 p-3 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white resize-none text-sm" /></div>
+              
+              {/* 5. Footer */}
               <div className="flex gap-3"><button type="button" onClick={() => setIsTaskModalOpen(false)} className="flex-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 py-3 rounded-xl transition-colors">Cancel</button><button className={`flex-[2] ${themeStyles.bg} ${themeStyles.hover} text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-95`}>Save Task</button></div>
             </form>
           </div>

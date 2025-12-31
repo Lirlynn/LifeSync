@@ -6,6 +6,7 @@ export interface CategoryConfig {
   icon?: string; // Icon name from lucide-react
   isDefault?: boolean;
   isFocus?: boolean; // Determines if this category counts towards Deep Work/Focus stats
+  defaultTags?: string[]; // Auto-populated tags when category is selected
 }
 
 export interface Task {
@@ -18,6 +19,7 @@ export interface Task {
   endTime: string; // HH:mm (24h)
   categoryId: string; // References CategoryConfig.id
   completed: boolean;
+  tags?: string[];
 }
 
 export interface DailyLog {
