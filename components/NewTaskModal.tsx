@@ -9,16 +9,6 @@ import {
 import { format, addMinutes } from 'date-fns';
 import { Task, CategoryConfig } from '../types';
 
-// --- Configuration ---
-// Hardcoded source of truth for tags based on category name
-const CATEGORY_CONFIG: Record<string, { color: string; tags: string[] }> = {
-  'Health & Fitness': { color: 'red', tags: ['Gym', 'Cardio', 'Yoga', 'Meditation'] },
-  'Work': { color: 'blue', tags: ['Deep Work', 'Meeting', 'Coding', 'Strategy'] },
-  'Learning': { color: 'yellow', tags: ['Reading', 'Course', 'Research'] },
-  'Social': { color: 'purple', tags: ['Family', 'Friends', 'Date'] },
-  'Personal': { color: 'green', tags: ['Rest', 'Errands', 'Chore'] }
-};
-
 // --- Helper Components ---
 
 const SmartTimeInput = ({ value, onChange, label, themeStyles }: any) => {
@@ -131,10 +121,26 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:00');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
-  const [taskTags, setTaskTags] = useState<string[]>([]);
+  
+  // Strict Mode: Single tag string instead of array
+  const [selectedTag, setSelectedTag] = useState<string>('');
+  
   const [tagInput, setTagInput] = useState('');
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [taskImpact, setTaskImpact] = useState(5);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsTagDropdownOpen(false);
+      }
+    };
+    if (isTagDropdownOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTagDropdownOpen]);
 
   // Initialization Effect
   useEffect(() => {
@@ -144,7 +150,11 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
         setFormStartTime(editingTask.startTime || '09:00');
         setFormEndTime(editingTask.endTime || '10:00');
         setSelectedCategoryId(editingTask.categoryId || categories[0].id);
-        setTaskTags(editingTask.tags || []);
+        
+        // Flatten tags to single string
+        const existingTags = editingTask.tags || [];
+        setSelectedTag(existingTags.length > 0 ? existingTags[0] : '');
+        
         setTaskImpact(editingTask.impact || 5);
       } else {
         // Create Mode: Initialize New Task
@@ -165,14 +175,8 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
         const defaultCat = categories.find(c => c.isDefault) || categories[0];
         if (defaultCat) {
           setSelectedCategoryId(defaultCat.id);
-          
-          // Look up tags in static config based on category name
-          const configTags = CATEGORY_CONFIG[defaultCat.name]?.tags || [];
-          if (configTags.length > 0) {
-            setTaskTags([configTags[0]]);
-          } else {
-            setTaskTags([]);
-          }
+          const configTags = defaultCat.defaultTags || [];
+          setSelectedTag(configTags.length > 0 ? configTags[0] : '');
         }
       }
       setTagInput('');
@@ -183,16 +187,13 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
   const handleCategorySelect = (catId: string) => {
     setSelectedCategoryId(catId);
     
-    // Strict Tag Logic: When category changes, switch to the first tag of that category
+    // STRICT CONTEXT: When category changes, switch to the first tag of that category automatically
     const cat = categories.find(c => c.id === catId);
     if (cat) {
-      const configTags = CATEGORY_CONFIG[cat.name]?.tags || [];
-      if (configTags.length > 0) {
-        setTaskTags([configTags[0]]);
-      } else {
-        setTaskTags([]);
-      }
+      const configTags = cat.defaultTags || [];
+      setSelectedTag(configTags.length > 0 ? configTags[0] : '');
     }
+    setTagInput(''); // Clear any custom input
   };
 
   const handleQuickDuration = (minutes: number) => {
@@ -203,25 +204,32 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
     setFormEndTime(format(newEnd, 'HH:mm'));
   };
 
-  const addTag = (tag: string) => {
-    if (taskTags.length < 5 && !taskTags.includes(tag)) {
-      setTaskTags([...taskTags, tag]);
-      setTagInput('');
-      setIsTagDropdownOpen(false);
-    }
+  const selectTag = (tag: string) => {
+    setSelectedTag(tag);
+    setTagInput('');
+    setIsTagDropdownOpen(false);
   };
 
-  const removeTag = (tag: string) => {
-    setTaskTags(taskTags.filter(t => t !== tag));
+  const clearTag = () => {
+    setSelectedTag('');
+    setIsTagDropdownOpen(true); // Keep dropdown open to pick new one immediately
   };
 
-  // Determine which tags to show in the dropdown based on selected category
+  const handleTagChipClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent container click
+    // Edit mode: Convert tag back to input text
+    setTagInput(selectedTag);
+    setSelectedTag('');
+    setIsTagDropdownOpen(true);
+  };
+
+  // Determine available tags based on selected category
   const currentCategory = categories.find(c => c.id === selectedCategoryId);
   const currentCategoryName = currentCategory?.name || '';
-  const suggestedTags = CATEGORY_CONFIG[currentCategoryName]?.tags || [];
+  const availableTags = currentCategory?.defaultTags || [];
   
-  // Filter out tags that are already selected
-  const availableTags = suggestedTags.filter(t => !taskTags.includes(t));
+  // Filter for dropdown
+  const filteredTags = availableTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()));
 
   if (!isOpen) return null;
 
@@ -241,7 +249,7 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
              startTime: formStartTime,
              endTime: formEndTime,
              categoryId: selectedCategoryId,
-             tags: taskTags
+             tags: selectedTag ? [selectedTag] : [] // Convert back to array for compatibility
            });
         }}>
           {/* 1. Title Input */}
@@ -311,57 +319,62 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
               </div>
             </div>
 
-            {/* Smart Tag Selector */}
-            <div className="relative">
-              <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2">Tags</label>
+            {/* Smart Tag Selector - Strict Mode */}
+            <div className="relative" ref={containerRef}>
+              <label className="block text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-2">Tag (Single Selection)</label>
               <div 
-                className="w-full p-2.5 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500 flex items-center flex-wrap gap-2 min-h-[44px]"
-                onClick={() => setIsTagDropdownOpen(true)}
+                className="w-full p-2.5 rounded-xl border dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus-within:ring-2 focus-within:ring-indigo-500 flex items-center gap-2 min-h-[44px] cursor-pointer"
+                onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
               >
-                <Tag size={16} className="text-zinc-400 mr-1" />
-                {taskTags.map(tag => (
-                  <span key={tag} className="flex items-center gap-1 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-bold shadow-sm">
-                    {tag}
+                <Tag size={16} className="text-zinc-400 mr-1 flex-shrink-0" />
+                
+                {selectedTag ? (
+                  <span 
+                    onClick={handleTagChipClick}
+                    className="flex items-center gap-1 bg-white dark:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 px-2 py-0.5 rounded-lg text-xs font-bold shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-600 transition-colors"
+                  >
+                    {selectedTag}
                     <button 
                       type="button" 
-                      onClick={(e) => { e.stopPropagation(); removeTag(tag); }} 
-                      className="hover:text-red-500"
+                      onClick={(e) => { e.stopPropagation(); clearTag(); }} 
+                      className="hover:text-red-500 rounded-full p-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                     >
                       <X size={12} />
                     </button>
                   </span>
-                ))}
-                <input 
-                  value={tagInput}
-                  onChange={e => { setTagInput(e.target.value); setIsTagDropdownOpen(true); }}
-                  onFocus={() => setIsTagDropdownOpen(true)}
-                  placeholder={taskTags.length === 0 ? "Select or type..." : ""}
-                  className="flex-1 bg-transparent outline-none text-sm dark:text-white min-w-[80px]"
-                />
+                ) : (
+                    <input 
+                      value={tagInput}
+                      onChange={e => { setTagInput(e.target.value); setIsTagDropdownOpen(true); }}
+                      onFocus={() => setIsTagDropdownOpen(true)}
+                      onClick={(e) => e.stopPropagation()} 
+                      placeholder={availableTags.length > 0 ? "Select a tag..." : "Type custom tag..."}
+                      className="flex-1 bg-transparent outline-none text-sm dark:text-white min-w-[80px]"
+                    />
+                )}
               </div>
               
               {isTagDropdownOpen && (
                 <div className="absolute top-full left-0 w-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto">
                     {/* Suggested Tags based on Category */}
-                    {availableTags
-                      .filter(t => t.toLowerCase().includes(tagInput.toLowerCase()))
-                      .map(tag => (
+                    {filteredTags.map(tag => (
                       <button
                         key={tag}
                         type="button"
-                        onClick={() => addTag(tag)}
-                        className="w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm dark:text-zinc-200 flex items-center gap-2"
+                        onClick={() => selectTag(tag)}
+                        className={`w-full text-left px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm flex items-center gap-2 ${tag === selectedTag ? `${themeStyles.text} font-bold bg-zinc-50 dark:bg-zinc-800/50` : 'text-zinc-700 dark:text-zinc-200'}`}
                       >
-                        <Tag size={14} className="text-zinc-400" />
+                        <Tag size={14} className={tag === selectedTag ? themeStyles.text : "text-zinc-400"} />
                         {tag}
+                        {tag === selectedTag && <Check size={14} className="ml-auto" />}
                       </button>
                     ))}
                     
                     {/* Allow creating custom tags if input exists and isn't a duplicate */}
-                    {tagInput.trim() && !taskTags.includes(tagInput.trim()) && !suggestedTags.includes(tagInput.trim()) && (
+                    {tagInput.trim() && !filteredTags.includes(tagInput.trim()) && (
                        <button
                          type="button"
-                         onClick={() => addTag(tagInput.trim())}
+                         onClick={() => selectTag(tagInput.trim())}
                          className="w-full text-left px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-2 border-t border-zinc-100 dark:border-zinc-800"
                        >
                          <Plus size={14} />
@@ -369,15 +382,16 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
                        </button>
                     )}
                     
-                    {availableTags.length === 0 && !tagInput.trim() && (
-                      <div className="px-4 py-2 text-xs text-zinc-400 italic">No suggestions for this category</div>
+                    {filteredTags.length === 0 && !tagInput.trim() && (
+                      <div className="px-4 py-3 text-xs text-zinc-400 italic text-center">
+                        No preset tags found. Type to create.
+                      </div>
                     )}
 
                     <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1"></div>
                     <button type="button" onClick={() => setIsTagDropdownOpen(false)} className="w-full text-center py-2 text-xs text-zinc-400 hover:text-zinc-600">Close</button>
                 </div>
               )}
-              {isTagDropdownOpen && <div className="fixed inset-0 z-40" onClick={() => setIsTagDropdownOpen(false)} />}
             </div>
           </div>
 
