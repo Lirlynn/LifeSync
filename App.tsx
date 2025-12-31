@@ -1611,6 +1611,14 @@ export default function App() {
     setTasks(prev => taskData.id ? prev.map(t => t.id === taskData.id ? newTask : t) : [...prev, newTask]);
     setIsTaskModalOpen(false); setEditingTask(undefined);
   };
+  
+  const handleDeleteTask = (taskId: string) => {
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      setIsTaskModalOpen(false);
+      setEditingTask(undefined);
+    }
+  };
 
   const handleSaveReflection = (logData: DailyLog) => {
     const newLog = { ...logData, date: formattedDate };
@@ -2143,6 +2151,7 @@ export default function App() {
         isOpen={isTaskModalOpen} 
         onClose={() => setIsTaskModalOpen(false)} 
         onSave={handleSaveTask} 
+        onDelete={handleDeleteTask}
         categories={categories} 
         editingTask={editingTask} 
         themeStyles={themeStyles} 

@@ -4,7 +4,8 @@ import {
   Clock, 
   Tag, 
   Plus, 
-  Check 
+  Check,
+  Trash2
 } from 'lucide-react';
 import { format, addMinutes } from 'date-fns';
 import { Task, CategoryConfig } from '../types';
@@ -112,12 +113,13 @@ interface NewTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: any) => void;
+  onDelete?: (taskId: string) => void;
   categories: CategoryConfig[];
   editingTask?: Partial<Task>;
   themeStyles: any;
 }
 
-export default function NewTaskModal({ isOpen, onClose, onSave, categories, editingTask, themeStyles }: NewTaskModalProps) {
+export default function NewTaskModal({ isOpen, onClose, onSave, onDelete, categories, editingTask, themeStyles }: NewTaskModalProps) {
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:00');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
@@ -425,6 +427,17 @@ export default function NewTaskModal({ isOpen, onClose, onSave, categories, edit
           
           {/* 5. Footer */}
           <div className="flex gap-3">
+            {/* Delete Button - Only shown when editing existing task */}
+            {editingTask && onDelete && (
+               <button 
+                  type="button" 
+                  onClick={() => onDelete(editingTask.id!)}
+                  className="p-3 text-red-500 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-xl transition-colors"
+                  title="Delete Task"
+               >
+                 <Trash2 size={20} />
+               </button>
+            )}
             <button type="button" onClick={onClose} className="flex-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 py-3 rounded-xl transition-colors font-medium">Cancel</button>
             <button className={`flex-[2] ${themeStyles.bg} ${themeStyles.hover} text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-transform active:scale-95`}>Save Task</button>
           </div>
